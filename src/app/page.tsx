@@ -11,7 +11,7 @@ export default async function HomePage() {
         <div className="absolute inset-x-0 top-0 h-2 bg-gradient-to-r from-blue-600 via-cyan-500 to-emerald-500" />
         <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[1.15fr_0.85fr] lg:items-center lg:py-20">
           <div>
-            <p className="text-sm font-bold uppercase tracking-wide text-blue-600">Sri Lankan question bank</p>
+            <p className="text-sm font-bold uppercase tracking-wide text-blue-600">Sri Lankan question bank By Gome</p>
             <h1 className="mt-4 max-w-3xl text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl">
               Learn Every Lesson, One Question at a Time
             </h1>
