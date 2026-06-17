@@ -1,6 +1,3 @@
-"use client";
-
-import { motion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -14,13 +11,11 @@ type StatsCardProps = {
 
 export function StatsCard({ label, value, icon: Icon, trend, className }: StatsCardProps) {
   return (
-    <motion.div
+    <div
       className={cn(
         "rounded-3xl border border-border bg-card p-6 shadow-brand",
         className,
       )}
-      whileHover={{ y: -4 }}
-      transition={{ duration: 0.3 }}
     >
       <div className="flex items-start justify-between">
         <div>
@@ -32,6 +27,6 @@ export function StatsCard({ label, value, icon: Icon, trend, className }: StatsC
           <Icon className="h-6 w-6" aria-hidden="true" />
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
