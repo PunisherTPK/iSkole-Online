@@ -1,6 +1,8 @@
 # iSkole Online
 
-Production-ready MVP for [iskole.online](https://iskole.online), a Sri Lankan past paper and question bank website.
+Structure-first educational content management MVP for [iskole.online](https://iskole.online).
+
+The application is database-driven. Curriculums, levels, subjects, resource types, resources, past papers, teachers, and assignments come from Supabase records rather than hardcoded education systems or subject names.
 
 ## Stack
 
@@ -8,7 +10,7 @@ Production-ready MVP for [iskole.online](https://iskole.online), a Sri Lankan pa
 - TypeScript
 - Tailwind CSS
 - Supabase
-- SEO routes for metadata, sitemap, and robots.txt
+- Vercel-ready deployment
 
 ## Local Setup
 
@@ -20,7 +22,7 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-The app runs with bundled sample data until Supabase variables are added.
+The app uses sample fallback data until Supabase variables are configured.
 
 ## Environment Variables
 
@@ -30,55 +32,92 @@ NEXT_PUBLIC_SUPABASE_URL=your-project-url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ADMIN_PASSWORD=use-a-strong-password
+ADMIN_ROLE=super_admin
+ADMIN_TEACHER_EMAIL=
 ```
 
-`SUPABASE_SERVICE_ROLE_KEY` is only used in server actions for `/admin`. Never expose it in client code.
+Set `ADMIN_ROLE=teacher` and `ADMIN_TEACHER_EMAIL=teacher@example.com` to preview the teacher-limited admin experience.
 
-## Supabase Setup
+## Database
 
-1. Create a Supabase project.
-2. Open the SQL editor.
-3. Run `supabase/schema.sql`.
-4. Run `supabase/seed.sql`.
-5. Add the environment variables to `.env.local` and Vercel.
+Run the migration first:
 
-Public read access is enabled through RLS policies. Admin writes use the service role key from the server.
+```sql
+supabase/migrations/202606170001_structure_first_cms.sql
+```
 
-## Routes
+For a fresh project, you can also run:
 
-- `/` homepage with global search and grade cards
-- `/grade-10` grade page
-- `/grade-10/science` subject page
-- `/grade-10/science/electricity` lesson page
-- `/grade-10/science/electricity/2024-past-paper` paper page
-- `/search?q=electricity` search results
-- `/admin` password-protected content manager
+```sql
+supabase/schema.sql
+supabase/seed.sql
+```
+
+Core tables:
+
+- `curriculums`
+- `levels`
+- `subjects`
+- `resource_types`
+- `resources`
+- `past_papers`
+- `teachers`
+- `teacher_assignments`
+
+Soft delete is implemented with `deleted_at`. Public reads are protected by RLS policies that only expose active content.
+
+## Public Routes
+
+- `/` curriculum selector
+- `/{curriculumSlug}` levels
+- `/{curriculumSlug}/{levelSlug}` subjects
+- `/{curriculumSlug}/{levelSlug}/{subjectSlug}` resources
+- `/{curriculumSlug}/{levelSlug}/{subjectSlug}/past-papers`
+- `/search`
 - `/sitemap.xml`
 - `/robots.txt`
 
-## Admin
+## Admin Routes
 
-Set `ADMIN_PASSWORD` before using `/admin`.
+- `/admin` dashboard
+- `/admin/curriculums`
+- `/admin/levels`
+- `/admin/subjects`
+- `/admin/resources`
+- `/admin/past-papers`
+- `/admin/teachers`
+- `/admin/settings`
 
-The admin can add grades, subjects, lessons, papers, and questions. Existing questions can be edited or deleted.
+The admin UI uses cards, filters, breadcrumbs, soft deletes, confirmation dialogs, loading states, and simple pagination.
+
+## Folder Structure
+
+```text
+src/app
+  [curriculumSlug]/
+    [levelSlug]/
+      [subjectSlug]/
+        past-papers/
+  admin/
+    curriculums/
+    levels/
+    subjects/
+    resources/
+    past-papers/
+    teachers/
+    settings/
+src/components
+  admin/
+src/lib
+supabase/
+  migrations/
+```
 
 ## Vercel Deployment
 
 1. Push the repository to GitHub.
-2. Import it in Vercel.
-3. Set the environment variables listed above.
-4. Deploy.
-5. Point `iskole.online` DNS to Vercel.
-
-Recommended production values:
-
-- `NEXT_PUBLIC_SITE_URL=https://iskole.online`
-- Strong unique `ADMIN_PASSWORD`
-- Supabase service role key stored only as a Vercel server environment variable
-
-## Architecture Notes
-
-- `src/lib/data.ts` owns all content reads and URL construction.
-- `src/lib/admin-actions.ts` owns protected content writes.
-- `src/components` contains reusable UI.
-- Future features such as accounts, discussions, AI explanations, exam generation, and subscriptions can be added without changing the public route structure.
+2. Import the project in Vercel.
+3. Add all environment variables.
+4. Run the Supabase migration and seed data.
+5. Deploy.
+6. Point `iskole.online` DNS to Vercel.

@@ -1,8 +1,17 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import type { ReactNode } from "react";
-import { Footer } from "@/components/Footer";
-import { Navbar } from "@/components/Navbar";
+import { ConfirmForms } from "@/components/admin/ConfirmForms";
+import { Footer } from "@/components/layout/Footer";
+import { ThemeProvider } from "@/components/layout/ThemeProvider";
+import { Topbar } from "@/components/layout/Topbar";
 import "./globals.css";
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://iskole.online";
 
@@ -12,7 +21,7 @@ export const metadata: Metadata = {
     default: "iSkole Online - Sri Lankan Past Papers and Question Bank",
     template: "%s | iSkole Online",
   },
-  description: "Search Sri Lankan school past papers, lessons, questions, answers, and explanations by grade and subject.",
+  description: "Search Sri Lankan educational resources by curriculum, level, subject, and past paper.",
   openGraph: {
     type: "website",
     siteName: "iSkole Online",
@@ -24,11 +33,14 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="en">
-      <body className="min-h-screen font-sans antialiased">
-        <Navbar />
-        <main>{children}</main>
-        <Footer />
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${inter.variable} min-h-screen font-sans antialiased`}>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <Topbar />
+          <ConfirmForms />
+          <main>{children}</main>
+          <Footer />
+        </ThemeProvider>
       </body>
     </html>
   );

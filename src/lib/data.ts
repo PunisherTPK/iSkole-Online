@@ -1,106 +1,104 @@
 import { sampleCatalog } from "@/lib/sample-data";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
-import type { Catalog, Grade, Lesson, Paper, Question, SearchResult, Subject } from "@/lib/types";
-import { paperSlug, slugify } from "@/lib/slug";
+import type { Catalog, Curriculum, Level, PastPaper, Resource, SearchResult, Subject } from "@/lib/types";
 
 export async function getCatalog(): Promise<Catalog> {
   const supabase = getSupabaseBrowserClient();
 
-  if (!supabase) {
-    return sampleCatalog;
-  }
+  if (!supabase) return sampleCatalog;
 
-  const [grades, subjects, lessons, papers, questions] = await Promise.all([
-    supabase.from("grades").select("*").order("name"),
-    supabase.from("subjects").select("*").order("name"),
-    supabase.from("lessons").select("*").order("name"),
-    supabase.from("papers").select("*").order("year", { ascending: false }),
-    supabase.from("questions").select("*").order("id"),
+  const [curriculums, levels, subjects, resourceTypes, resources, pastPapers, teachers, teacherAssignments] = await Promise.all([
+    supabase.from("curriculums").select("*").is("deleted_at", null).order("display_order"),
+    supabase.from("levels").select("*").is("deleted_at", null).order("display_order"),
+    supabase.from("subjects").select("*").is("deleted_at", null).order("display_order"),
+    supabase.from("resource_types").select("*").order("name"),
+    supabase.from("resources").select("*").is("deleted_at", null).order("display_order"),
+    supabase.from("past_papers").select("*").is("deleted_at", null).order("year", { ascending: false }),
+    supabase.from("teachers").select("*").is("deleted_at", null).order("name"),
+    supabase.from("teacher_assignments").select("*"),
   ]);
 
-  if (grades.error || subjects.error || lessons.error || papers.error || questions.error) {
+  if (
+    curriculums.error ||
+    levels.error ||
+    subjects.error ||
+    resourceTypes.error ||
+    resources.error ||
+    pastPapers.error ||
+    teachers.error ||
+    teacherAssignments.error
+  ) {
     return sampleCatalog;
   }
 
   return {
-    grades: (grades.data ?? []) as Catalog["grades"],
+    curriculums: (curriculums.data ?? []) as Catalog["curriculums"],
+    levels: (levels.data ?? []) as Catalog["levels"],
     subjects: (subjects.data ?? []) as Catalog["subjects"],
-    lessons: (lessons.data ?? []) as Catalog["lessons"],
-    papers: (papers.data ?? []) as Catalog["papers"],
-    questions: (questions.data ?? []) as Catalog["questions"],
+    resourceTypes: (resourceTypes.data ?? []) as Catalog["resourceTypes"],
+    resources: (resources.data ?? []) as Catalog["resources"],
+    pastPapers: (pastPapers.data ?? []) as Catalog["pastPapers"],
+    teachers: (teachers.data ?? []) as Catalog["teachers"],
+    teacherAssignments: (teacherAssignments.data ?? []) as Catalog["teacherAssignments"],
   };
 }
 
-export async function getGradeBySlug(gradeSlug: string) {
+export async function getCurriculumBySlug(curriculumSlug: string) {
   const catalog = await getCatalog();
   return {
     catalog,
-    grade: catalog.grades.find((grade) => slugify(grade.name) === gradeSlug),
+    curriculum: catalog.curriculums.find((item) => item.slug === curriculumSlug),
   };
 }
 
-export async function getSubjectBySlugs(gradeSlug: string, subjectSlug: string) {
-  const { catalog, grade } = await getGradeBySlug(gradeSlug);
-  const subject = grade
-    ? catalog.subjects.find((item) => item.grade_id === grade.id && slugify(item.name) === subjectSlug)
+export async function getLevelBySlugs(curriculumSlug: string, levelSlug: string) {
+  const { catalog, curriculum } = await getCurriculumBySlug(curriculumSlug);
+  const level = curriculum
+    ? catalog.levels.find((item) => item.curriculum_id === curriculum.id && item.slug === levelSlug)
     : undefined;
 
-  return { catalog, grade, subject };
+  return { catalog, curriculum, level };
 }
 
-export async function getLessonBySlugs(gradeSlug: string, subjectSlug: string, lessonSlug: string) {
-  const { catalog, grade, subject } = await getSubjectBySlugs(gradeSlug, subjectSlug);
-  const lesson = subject
-    ? catalog.lessons.find((item) => item.subject_id === subject.id && slugify(item.name) === lessonSlug)
-    : undefined;
+export async function getSubjectBySlugs(curriculumSlug: string, levelSlug: string, subjectSlug: string) {
+  const { catalog, curriculum, level } = await getLevelBySlugs(curriculumSlug, levelSlug);
+  const subject = level ? catalog.subjects.find((item) => item.level_id === level.id && item.slug === subjectSlug) : undefined;
 
-  return { catalog, grade, subject, lesson };
+  return { catalog, curriculum, level, subject };
 }
 
-export async function getPaperBySlugs(
-  gradeSlug: string,
-  subjectSlug: string,
-  lessonSlug: string,
-  selectedPaperSlug: string,
-) {
-  const { catalog, grade, subject, lesson } = await getLessonBySlugs(gradeSlug, subjectSlug, lessonSlug);
-  const paper = lesson
-    ? catalog.papers.find((item) => item.lesson_id === lesson.id && paperSlug(item.year, item.title) === selectedPaperSlug)
-    : undefined;
-
-  return { catalog, grade, subject, lesson, paper };
+export function levelsForCurriculum(catalog: Catalog, curriculum: Curriculum) {
+  return catalog.levels.filter((item) => item.curriculum_id === curriculum.id).sort(byDisplayOrder);
 }
 
-export function subjectsForGrade(catalog: Catalog, grade: Grade) {
-  return catalog.subjects.filter((subject) => subject.grade_id === grade.id);
+export function subjectsForLevel(catalog: Catalog, level: Level) {
+  return catalog.subjects.filter((item) => item.level_id === level.id).sort(byDisplayOrder);
 }
 
-export function lessonsForSubject(catalog: Catalog, subject: Subject) {
-  return catalog.lessons.filter((lesson) => lesson.subject_id === subject.id);
+export function resourcesForSubject(catalog: Catalog, subject: Subject, resourceTypeId?: string) {
+  return catalog.resources
+    .filter((item) => item.subject_id === subject.id && (!resourceTypeId || item.resource_type_id === resourceTypeId))
+    .sort(byDisplayOrder);
 }
 
-export function papersForLesson(catalog: Catalog, lesson: Lesson) {
-  return catalog.papers.filter((paper) => paper.lesson_id === lesson.id).sort((a, b) => b.year - a.year);
+export function pastPapersForSubject(catalog: Catalog, subject: Subject) {
+  return catalog.pastPapers.filter((item) => item.subject_id === subject.id).sort((a, b) => b.year - a.year || a.display_order - b.display_order);
 }
 
-export function questionsForPaper(catalog: Catalog, paper: Paper) {
-  return catalog.questions.filter((question) => question.paper_id === paper.id);
+export function pathForCurriculum(curriculum: Curriculum) {
+  return `/${curriculum.slug}`;
 }
 
-export function pathForGrade(grade: Grade) {
-  return `/${slugify(grade.name)}`;
+export function pathForLevel(curriculum: Curriculum, level: Level) {
+  return `${pathForCurriculum(curriculum)}/${level.slug}`;
 }
 
-export function pathForSubject(grade: Grade, subject: Subject) {
-  return `${pathForGrade(grade)}/${slugify(subject.name)}`;
+export function pathForSubject(curriculum: Curriculum, level: Level, subject: Subject) {
+  return `${pathForLevel(curriculum, level)}/${subject.slug}`;
 }
 
-export function pathForLesson(grade: Grade, subject: Subject, lesson: Lesson) {
-  return `${pathForSubject(grade, subject)}/${slugify(lesson.name)}`;
-}
-
-export function pathForPaper(grade: Grade, subject: Subject, lesson: Lesson, paper: Paper) {
-  return `${pathForLesson(grade, subject, lesson)}/${paperSlug(paper.year, paper.title)}`;
+export function pathForPastPapers(curriculum: Curriculum, level: Level, subject: Subject) {
+  return `${pathForSubject(curriculum, level, subject)}/past-papers`;
 }
 
 export function searchCatalog(catalog: Catalog, query: string): SearchResult[] {
@@ -109,76 +107,88 @@ export function searchCatalog(catalog: Catalog, query: string): SearchResult[] {
 
   const results: SearchResult[] = [];
 
-  for (const grade of catalog.grades) {
-    if (matches(normalized, grade.name)) {
-      results.push({ title: grade.name, description: "Browse subjects and papers for this grade.", href: pathForGrade(grade), type: "Grade" });
+  for (const curriculum of catalog.curriculums) {
+    if (matches(normalized, curriculum.name)) {
+      results.push({
+        title: curriculum.name,
+        description: "Browse levels and subjects in this curriculum.",
+        href: pathForCurriculum(curriculum),
+        type: "Curriculum",
+      });
+    }
+  }
+
+  for (const level of catalog.levels) {
+    const curriculum = catalog.curriculums.find((item) => item.id === level.curriculum_id);
+    if (curriculum && matches(normalized, `${curriculum.name} ${level.name}`)) {
+      results.push({
+        title: level.name,
+        description: curriculum.name,
+        href: pathForLevel(curriculum, level),
+        type: "Level",
+      });
     }
   }
 
   for (const subject of catalog.subjects) {
-    const grade = catalog.grades.find((item) => item.id === subject.grade_id);
-    if (grade && matches(normalized, `${grade.name} ${subject.name}`)) {
-      results.push({ title: subject.name, description: `${grade.name} subject`, href: pathForSubject(grade, subject), type: "Subject" });
-    }
-  }
-
-  for (const lesson of catalog.lessons) {
-    const context = getLessonContext(catalog, lesson);
-    if (context && matches(normalized, `${context.grade.name} ${context.subject.name} ${lesson.name} ${lesson.description}`)) {
+    const context = getSubjectContext(catalog, subject);
+    if (context && matches(normalized, `${context.curriculum.name} ${context.level.name} ${subject.name}`)) {
       results.push({
-        title: lesson.name,
-        description: `${context.grade.name} ${context.subject.name} - ${lesson.description}`,
-        href: pathForLesson(context.grade, context.subject, lesson),
-        type: "Lesson",
+        title: subject.name,
+        description: `${context.curriculum.name} > ${context.level.name}`,
+        href: pathForSubject(context.curriculum, context.level, subject),
+        type: "Subject",
       });
     }
   }
 
-  for (const paper of catalog.papers) {
-    const context = getPaperContext(catalog, paper);
-    if (context && matches(normalized, `${context.grade.name} ${context.subject.name} ${context.lesson.name} ${paper.title} ${paper.year}`)) {
+  for (const resource of catalog.resources) {
+    const context = getResourceContext(catalog, resource);
+    if (context && matches(normalized, `${resource.title} ${resource.description} ${resource.content}`)) {
       results.push({
-        title: paper.title,
-        description: `${context.grade.name} ${context.subject.name} - ${context.lesson.name}`,
-        href: pathForPaper(context.grade, context.subject, context.lesson, paper),
-        type: "Paper",
+        title: resource.title,
+        description: `${context.curriculum.name} > ${context.level.name} > ${context.subject.name}`,
+        href: `${pathForSubject(context.curriculum, context.level, context.subject)}#${resource.id}`,
+        type: "Resource",
       });
     }
   }
 
-  for (const question of catalog.questions) {
-    const context = getQuestionContext(catalog, question);
-    if (context && matches(normalized, `${question.question_text} ${question.answer_text} ${question.explanation_text}`)) {
+  for (const paper of catalog.pastPapers) {
+    const context = getPastPaperContext(catalog, paper);
+    if (context && matches(normalized, `${paper.year} ${paper.session}`)) {
       results.push({
-        title: question.question_text,
-        description: `${context.grade.name} ${context.subject.name} - ${context.paper.title}`,
-        href: `${pathForPaper(context.grade, context.subject, context.lesson, context.paper)}#${question.id}`,
-        type: "Question",
+        title: `${paper.year} ${paper.session}`,
+        description: `${context.curriculum.name} > ${context.level.name} > ${context.subject.name}`,
+        href: pathForPastPapers(context.curriculum, context.level, context.subject),
+        type: "Past Paper",
       });
     }
   }
 
-  return results.slice(0, 30);
+  return results.slice(0, 40);
+}
+
+function getSubjectContext(catalog: Catalog, subject: Subject) {
+  const level = catalog.levels.find((item) => item.id === subject.level_id);
+  const curriculum = level ? catalog.curriculums.find((item) => item.id === level.curriculum_id) : undefined;
+  return curriculum && level ? { curriculum, level, subject } : null;
+}
+
+function getResourceContext(catalog: Catalog, resource: Resource) {
+  const subject = catalog.subjects.find((item) => item.id === resource.subject_id);
+  return subject ? getSubjectContext(catalog, subject) : null;
+}
+
+function getPastPaperContext(catalog: Catalog, paper: PastPaper) {
+  const subject = catalog.subjects.find((item) => item.id === paper.subject_id);
+  return subject ? getSubjectContext(catalog, subject) : null;
+}
+
+function byDisplayOrder<T extends { display_order: number; name?: string; title?: string }>(a: T, b: T) {
+  return a.display_order - b.display_order || (a.name ?? a.title ?? "").localeCompare(b.name ?? b.title ?? "");
 }
 
 function matches(query: string, value: string) {
   return value.toLowerCase().includes(query);
-}
-
-function getLessonContext(catalog: Catalog, lesson: Lesson) {
-  const subject = catalog.subjects.find((item) => item.id === lesson.subject_id);
-  const grade = subject ? catalog.grades.find((item) => item.id === subject.grade_id) : undefined;
-  return subject && grade ? { grade, subject } : null;
-}
-
-function getPaperContext(catalog: Catalog, paper: Paper) {
-  const lesson = catalog.lessons.find((item) => item.id === paper.lesson_id);
-  const context = lesson ? getLessonContext(catalog, lesson) : null;
-  return context && lesson ? { ...context, lesson } : null;
-}
-
-function getQuestionContext(catalog: Catalog, question: Question) {
-  const paper = catalog.papers.find((item) => item.id === question.paper_id);
-  const context = paper ? getPaperContext(catalog, paper) : null;
-  return context && paper ? { ...context, paper } : null;
 }
