@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { AdminCard, SelectInput, SubmitButton, TextInput } from "@/components/admin/AdminForms";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AdminShell } from "@/components/admin/AdminShell";
 import {
   assignTeacherSubject,
@@ -21,7 +22,10 @@ export default async function TeachersAdminPage() {
   return (
     <AdminShell>
       <div className="grid gap-6">
-        <Header title={role === "teacher" ? "My Subjects" : "Teachers"} description="Assign subjects so teachers can focus on the folders they manage." />
+        <AdminPageHeader
+          title={role === "teacher" ? "My Subjects" : "Teachers"}
+          description="Assign subjects so teachers can focus on the folders they manage."
+        />
         {role === "super_admin" ? (
           <AdminCard title="Create Teacher">
             <form action={createTeacher} className="grid gap-3 md:grid-cols-[1fr_1fr_180px_auto]">
@@ -59,18 +63,25 @@ export default async function TeachersAdminPage() {
                     const level = subject ? catalog.levels.find((item) => item.id === subject.level_id) : undefined;
                     const curriculum = level ? catalog.curriculums.find((item) => item.id === level.curriculum_id) : undefined;
                     return (
-                      <form key={assignment.id} action={deleteTeacherAssignment} className="rounded-lg border border-slate-200 bg-slate-50 p-3" data-confirm="Remove this subject assignment?">
+                      <form key={assignment.id} action={deleteTeacherAssignment} className="rounded-xl border border-border bg-muted/5 p-3" data-confirm="Remove this subject assignment?">
                         <input type="hidden" name="id" value={assignment.id} />
-                        <p className="text-sm font-semibold text-slate-800">
+                        <p className="text-sm font-semibold text-foreground">
                           {curriculum?.name} &gt; {level?.name} &gt; {subject?.name}
                         </p>
-                        {role === "super_admin" ? <button className="mt-2 text-sm font-semibold text-red-600" type="submit">Remove</button> : null}
+                        {role === "super_admin" ? (
+                          <button className="mt-2 text-sm font-semibold text-destructive hover:underline" type="submit">
+                            Remove
+                          </button>
+                        ) : null}
                       </form>
                     );
                   })}
                 </div>
                 {role === "super_admin" ? (
-                  <form action={deleteTeacher} className="mt-4" data-confirm="Delete this teacher profile?"><input type="hidden" name="id" value={teacher.id} /><SubmitButton tone="danger">Delete Teacher</SubmitButton></form>
+                  <form action={deleteTeacher} className="mt-4" data-confirm="Delete this teacher profile?">
+                    <input type="hidden" name="id" value={teacher.id} />
+                    <SubmitButton tone="danger">Delete Teacher</SubmitButton>
+                  </form>
                 ) : null}
               </AdminCard>
             );
@@ -79,8 +90,4 @@ export default async function TeachersAdminPage() {
       </div>
     </AdminShell>
   );
-}
-
-function Header({ title, description }: { title: string; description: string }) {
-  return <div><p className="text-sm font-bold uppercase tracking-wide text-blue-600">Admin</p><h1 className="mt-2 text-3xl font-bold text-slate-950">{title}</h1><p className="mt-2 text-slate-600">{description}</p></div>;
 }

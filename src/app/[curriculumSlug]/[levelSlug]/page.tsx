@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
-import { LessonCard } from "@/components/Cards";
-import { PageHeader } from "@/components/PageHeader";
+import { PageContainer } from "@/components/layout/PageContainer";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { SubjectCard } from "@/components/ui/custom/CurriculumCard";
+import { FadeIn } from "@/components/ui/custom/FadeIn";
 import { getLevelBySlugs, pathForCurriculum, pathForSubject, subjectsForLevel } from "@/lib/data";
 
 type Props = {
@@ -32,19 +34,20 @@ export default async function LevelPage({ params }: Props) {
   return (
     <>
       <PageHeader eyebrow={curriculum.name} title={level.name} description="Choose a subject to view resources and past papers." />
-      <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+      <PageContainer>
         <Breadcrumbs items={[{ label: curriculum.name, href: pathForCurriculum(curriculum) }, { label: level.name }]} />
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {subjects.map((subject) => (
-            <LessonCard
-              key={subject.id}
-              title={subject.name}
-              href={pathForSubject(curriculum, level, subject)}
-              description="Open notes, videos, topical questions, and past papers."
-            />
+        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {subjects.map((subject, index) => (
+            <FadeIn key={subject.id} delay={index * 0.05}>
+              <SubjectCard
+                title={subject.name}
+                href={pathForSubject(curriculum, level, subject)}
+                description="Open notes, videos, topical questions, and past papers."
+              />
+            </FadeIn>
           ))}
         </div>
-      </section>
+      </PageContainer>
     </>
   );
 }

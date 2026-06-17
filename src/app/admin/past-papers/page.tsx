@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 import { AdminCard, SelectInput, SubmitButton, TextInput } from "@/components/admin/AdminForms";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { ReorderList } from "@/components/admin/ReorderList";
+import { Card } from "@/components/ui/card";
 import { createPastPaper, deletePastPaper, isAdminAuthenticated, reorderPastPapers, updatePastPaper } from "@/lib/admin-actions";
 import { getCatalog, levelsForCurriculum, pastPapersForSubject, subjectsForLevel } from "@/lib/data";
 
@@ -22,13 +24,15 @@ export default async function PastPapersAdminPage({ searchParams }: Props) {
   return (
     <AdminShell>
       <div className="grid gap-6">
-        <Header title="Past Papers" description="Past papers are managed separately from notes, videos, and topical questions." />
-        <form className="grid gap-3 rounded-lg border border-slate-200 bg-white p-5 shadow-sm lg:grid-cols-[1fr_1fr_1fr_auto]">
-          <SelectInput name="curriculum" label="Curriculum" options={catalog.curriculums.map((item) => [item.id, item.name])} defaultValue={curriculum?.id} />
-          <SelectInput name="level" label="Level" options={levels.map((item) => [item.id, item.name])} defaultValue={level?.id} />
-          <SelectInput name="subject" label="Subject" options={subjects.map((item) => [item.id, item.name])} defaultValue={subject?.id} />
-          <button className="self-end rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white" type="submit">Open</button>
-        </form>
+        <AdminPageHeader title="Past Papers" description="Past papers are managed separately from notes, videos, and topical questions." />
+        <Card className="p-5">
+          <form className="grid gap-3 lg:grid-cols-[1fr_1fr_1fr_auto]">
+            <SelectInput name="curriculum" label="Curriculum" options={catalog.curriculums.map((item) => [item.id, item.name])} defaultValue={curriculum?.id} />
+            <SelectInput name="level" label="Level" options={levels.map((item) => [item.id, item.name])} defaultValue={level?.id} />
+            <SelectInput name="subject" label="Subject" options={subjects.map((item) => [item.id, item.name])} defaultValue={subject?.id} />
+            <div className="self-end"><SubmitButton>Open</SubmitButton></div>
+          </form>
+        </Card>
         {subject ? (
           <AdminCard title={`Upload Paper for ${subject.name}`}>
             <PaperForm action={createPastPaper} subjectId={subject.id} order={papers.length + 1} />
@@ -39,7 +43,10 @@ export default async function PastPapersAdminPage({ searchParams }: Props) {
           {papers.map((paper) => (
             <AdminCard key={paper.id} title={`${paper.year} ${paper.session}`}>
               <PaperForm action={updatePastPaper} id={paper.id} subjectId={paper.subject_id} order={paper.display_order} paper={paper} />
-              <form action={deletePastPaper} className="mt-3" data-confirm="Delete this past paper?"><input type="hidden" name="id" value={paper.id} /><SubmitButton tone="danger">Delete</SubmitButton></form>
+              <form action={deletePastPaper} className="mt-3" data-confirm="Delete this past paper?">
+                <input type="hidden" name="id" value={paper.id} />
+                <SubmitButton tone="danger">Delete</SubmitButton>
+              </form>
             </AdminCard>
           ))}
         </div>
@@ -63,8 +70,4 @@ function PaperForm({ action, id, subjectId, order, paper }: { action: (formData:
       <div><SubmitButton>{id ? "Save Paper" : "Upload Paper"}</SubmitButton></div>
     </form>
   );
-}
-
-function Header({ title, description }: { title: string; description: string }) {
-  return <div><p className="text-sm font-bold uppercase tracking-wide text-blue-600">Admin</p><h1 className="mt-2 text-3xl font-bold text-slate-950">{title}</h1><p className="mt-2 text-slate-600">{description}</p></div>;
 }

@@ -1,11 +1,17 @@
 import { redirect } from "next/navigation";
 import { AdminCard, SelectInput, SubmitButton, Textarea, TextInput } from "@/components/admin/AdminForms";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { ReorderList } from "@/components/admin/ReorderList";
+import { EmptyState } from "@/components/ui/custom/EmptyState";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { createResource, deleteResource, isAdminAuthenticated, reorderResources, updateResource } from "@/lib/admin-actions";
 import { getAdminRole, getAdminTeacherEmail } from "@/lib/admin-session";
 import { getCatalog, levelsForCurriculum, resourcesForSubject, subjectsForLevel } from "@/lib/data";
 import type { Catalog } from "@/lib/types";
+import { FileText } from "lucide-react";
 
 type Props = { searchParams: Promise<{ curriculum?: string; level?: string; subject?: string; type?: string; page?: string }> };
 
@@ -34,15 +40,22 @@ export default async function ResourcesAdminPage({ searchParams }: Props) {
   return (
     <AdminShell>
       <div className="grid gap-6">
-        <Header title="Resources" description="Select a subject folder, then manage notes, videos, and topical questions as cards." />
+        <AdminPageHeader title="Resources" description="Select a subject folder, then manage notes, videos, and topical questions as cards." />
         <ExplorerFilters curriculums={curriculums} levels={levels} subjects={subjects} curriculum={curriculum?.id} level={level?.id} subject={subject?.id} />
         {subject && selectedType ? (
           <>
             <div className="flex flex-wrap gap-2">
               {regularTypes.map((type) => (
-                <a key={type.id} className={`rounded-lg px-4 py-2 text-sm font-semibold ${type.id === selectedType.id ? "bg-blue-600 text-white" : "border border-slate-200 bg-white text-slate-700"}`} href={`?curriculum=${curriculum?.id}&level=${level?.id}&subject=${subject.id}&type=${type.id}`}>
-                  {type.name}
-                </a>
+                <Button
+                  key={type.id}
+                  variant={type.id === selectedType.id ? "default" : "outline"}
+                  asChild
+                  className="rounded-xl"
+                >
+                  <a href={`?curriculum=${curriculum?.id}&level=${level?.id}&subject=${subject.id}&type=${type.id}`}>
+                    {type.name}
+                  </a>
+                </Button>
               ))}
             </div>
             <AdminCard title={`Create ${selectedType.name}`}>
@@ -51,16 +64,37 @@ export default async function ResourcesAdminPage({ searchParams }: Props) {
             <ReorderList action={reorderResources} items={allResources.map((item) => ({ id: item.id, label: item.title, description: selectedType.name }))} />
             <div className="grid gap-4">
               {resources.map((resource) => (
-                <AdminCard key={resource.id} title={resource.title} description={selectedType.name}>
-                  <ResourceForm action={updateResource} id={resource.id} subjectId={resource.subject_id} resourceTypeId={resource.resource_type_id} order={resource.display_order} resource={resource} />
-                  <form action={deleteResource} className="mt-3" data-confirm="Delete this resource?"><input type="hidden" name="id" value={resource.id} /><SubmitButton tone="danger">Delete</SubmitButton></form>
-                </AdminCard>
+                <Card key={resource.id} className="overflow-hidden">
+                  <div className="border-b border-border bg-muted/5 px-6 py-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <Badge variant="outline" className="border-primary/20 text-primary">{selectedType.name}</Badge>
+                        <h3 className="mt-2 text-lg font-semibold text-foreground">{resource.title}</h3>
+                        <p className="mt-1 text-sm text-muted-foreground">{resource.description || "No description"}</p>
+                        {resource.created_at ? (
+                          <p className="mt-2 text-xs text-muted-foreground">{new Date(resource.created_at).toLocaleDateString()}</p>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-6">
+                    <p className="mb-4 text-sm font-semibold text-foreground">Edit Resource</p>
+                    <ResourceForm action={updateResource} id={resource.id} subjectId={resource.subject_id} resourceTypeId={resource.resource_type_id} order={resource.display_order} resource={resource} />
+                    <form action={deleteResource} className="mt-4 flex gap-2 border-t border-border pt-4" data-confirm="Delete this resource?">
+                      <input type="hidden" name="id" value={resource.id} />
+                      <SubmitButton tone="danger">Delete</SubmitButton>
+                    </form>
+                  </div>
+                </Card>
               ))}
+              {!resources.length ? (
+                <EmptyState icon={FileText} title="No resources uploaded yet" description="Create your first resource using the form above." />
+              ) : null}
             </div>
             <Pagination current={page} total={totalPages} base={`?curriculum=${curriculum?.id}&level=${level?.id}&subject=${subject.id}&type=${selectedType.id}`} />
           </>
         ) : (
-          <p className="rounded-lg border border-slate-200 bg-white p-5 text-sm text-slate-600">Select a subject to manage resources.</p>
+          <EmptyState icon={FileText} title="Select a subject" description="Choose a curriculum, level, and subject to manage resources." />
         )}
       </div>
     </AdminShell>
@@ -104,12 +138,14 @@ function ExplorerFilters({
   subject?: string;
 }) {
   return (
-    <form className="grid gap-3 rounded-lg border border-slate-200 bg-white p-5 shadow-sm lg:grid-cols-[1fr_1fr_1fr_auto]">
-      <SelectInput name="curriculum" label="Curriculum" options={curriculums.map((item) => [item.id, item.name])} defaultValue={curriculum} />
-      <SelectInput name="level" label="Level" options={levels.map((item) => [item.id, item.name])} defaultValue={level} />
-      <SelectInput name="subject" label="Subject" options={subjects.map((item) => [item.id, item.name])} defaultValue={subject} />
-      <button className="self-end rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white" type="submit">Open</button>
-    </form>
+    <Card className="p-5">
+      <form className="grid gap-3 lg:grid-cols-[1fr_1fr_1fr_auto]">
+        <SelectInput name="curriculum" label="Curriculum" options={curriculums.map((item) => [item.id, item.name])} defaultValue={curriculum} />
+        <SelectInput name="level" label="Level" options={levels.map((item) => [item.id, item.name])} defaultValue={level} />
+        <SelectInput name="subject" label="Subject" options={subjects.map((item) => [item.id, item.name])} defaultValue={subject} />
+        <div className="self-end"><SubmitButton>Open</SubmitButton></div>
+      </form>
+    </Card>
   );
 }
 
@@ -119,10 +155,15 @@ function allowedSubjects(catalog: Awaited<ReturnType<typeof getCatalog>>, role: 
   return teacher ? catalog.teacherAssignments.filter((item) => item.teacher_id === teacher.id).map((item) => item.subject_id) : [];
 }
 
-function Header({ title, description }: { title: string; description: string }) {
-  return <div><p className="text-sm font-bold uppercase tracking-wide text-blue-600">Admin</p><h1 className="mt-2 text-3xl font-bold text-slate-950">{title}</h1><p className="mt-2 text-slate-600">{description}</p></div>;
-}
-
 function Pagination({ current, total, base }: { current: number; total: number; base: string }) {
-  return <div className="flex gap-2">{Array.from({ length: total }, (_, index) => index + 1).map((page) => <a key={page} className={`rounded-lg px-3 py-2 text-sm font-semibold ${page === current ? "bg-blue-600 text-white" : "bg-white text-slate-700"}`} href={`${base}&page=${page}`}>{page}</a>)}</div>;
+  if (total <= 1) return null;
+  return (
+    <nav className="flex flex-wrap gap-2" aria-label="Pagination">
+      {Array.from({ length: total }, (_, index) => index + 1).map((page) => (
+        <Button key={page} variant={page === current ? "default" : "outline"} size="sm" asChild className="rounded-xl">
+          <a href={`${base}&page=${page}`}>{page}</a>
+        </Button>
+      ))}
+    </nav>
+  );
 }

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { AdminCard, SubmitButton, TextInput } from "@/components/admin/AdminForms";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { ReorderList } from "@/components/admin/ReorderList";
 import { createCurriculum, deleteCurriculum, isAdminAuthenticated, reorderCurriculums, updateCurriculum } from "@/lib/admin-actions";
@@ -15,7 +16,7 @@ export default async function CurriculumsAdminPage() {
   return (
     <AdminShell>
       <div className="grid gap-6">
-        <Header title="Curriculums" description="Create, edit, delete, and reorder top-level curriculum folders." />
+        <AdminPageHeader title="Curriculums" description="Create, edit, delete, and reorder top-level curriculum folders." />
         <AdminCard title="Create Curriculum">
           <form action={createCurriculum} className="grid gap-3 sm:grid-cols-[1fr_140px_auto]">
             <TextInput label="Name" name="name" placeholder="Curriculum name" />
@@ -24,10 +25,10 @@ export default async function CurriculumsAdminPage() {
           </form>
         </AdminCard>
         <ReorderList action={reorderCurriculums} items={catalog.curriculums.map((item) => ({ id: item.id, label: item.name }))} />
-        <div className="grid gap-3">
+        <div className="grid gap-4">
           {catalog.curriculums.map((curriculum) => (
             <AdminCard key={curriculum.id} title={curriculum.name} description="Drag this card in your planning order, then update its order number.">
-              <div draggable className="cursor-grab rounded-lg border border-dashed border-slate-300 p-3">
+              <div draggable className="cursor-grab rounded-xl border border-dashed border-border bg-muted/5 p-4">
                 <form action={updateCurriculum} className="grid gap-3 lg:grid-cols-[1fr_140px_auto]">
                   <input type="hidden" name="id" value={curriculum.id} />
                   <TextInput label="Name" name="name" defaultValue={curriculum.name} />
@@ -44,15 +45,5 @@ export default async function CurriculumsAdminPage() {
         </div>
       </div>
     </AdminShell>
-  );
-}
-
-function Header({ title, description }: { title: string; description: string }) {
-  return (
-    <div>
-      <p className="text-sm font-bold uppercase tracking-wide text-blue-600">Admin</p>
-      <h1 className="mt-2 text-3xl font-bold text-slate-950">{title}</h1>
-      <p className="mt-2 text-slate-600">{description}</p>
-    </div>
   );
 }

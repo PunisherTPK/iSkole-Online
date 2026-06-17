@@ -1,14 +1,16 @@
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
-export function AdminCard({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
+export function AdminCard({ title, description, children, className }: { title: string; description?: string; children: ReactNode; className?: string }) {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="mb-4">
-        <h2 className="text-xl font-bold text-slate-950">{title}</h2>
-        {description ? <p className="mt-1 text-sm leading-6 text-slate-600">{description}</p> : null}
-      </div>
-      {children}
-    </section>
+    <Card className={cn("overflow-hidden", className)}>
+      <CardHeader>
+        <CardTitle className="text-lg">{title}</CardTitle>
+        {description ? <CardDescription>{description}</CardDescription> : null}
+      </CardHeader>
+      <CardContent>{children}</CardContent>
+    </Card>
   );
 }
 
@@ -28,14 +30,14 @@ export function TextInput({
   required?: boolean;
 }) {
   return (
-    <label className="grid gap-2 text-sm font-semibold text-slate-700">
+    <label className="grid gap-2 text-sm font-semibold text-foreground">
       {label}
       <input
         name={name}
         defaultValue={defaultValue ?? ""}
         placeholder={placeholder}
         type={type}
-        className="min-h-11 rounded-lg border border-slate-300 px-4 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
+        className="min-h-11 rounded-xl border border-input bg-background px-4 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         required={required}
       />
     </label>
@@ -56,13 +58,13 @@ export function Textarea({
   required?: boolean;
 }) {
   return (
-    <label className="grid gap-2 text-sm font-semibold text-slate-700">
+    <label className="grid gap-2 text-sm font-semibold text-foreground">
       {label}
       <textarea
         name={name}
         defaultValue={defaultValue ?? ""}
         placeholder={placeholder}
-        className="min-h-28 rounded-lg border border-slate-300 px-4 py-3 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
+        className="min-h-28 rounded-xl border border-input bg-background px-4 py-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         required={required}
       />
     </label>
@@ -81,12 +83,12 @@ export function SelectInput({
   defaultValue?: string;
 }) {
   return (
-    <label className="grid gap-2 text-sm font-semibold text-slate-700">
+    <label className="grid gap-2 text-sm font-semibold text-foreground">
       {label}
       <select
         name={name}
         defaultValue={defaultValue}
-        className="min-h-11 rounded-lg border border-slate-300 bg-white px-4 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
+        className="min-h-11 rounded-xl border border-input bg-background px-4 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         required
       >
         {options.map(([value, labelText]) => (
@@ -101,13 +103,13 @@ export function SelectInput({
 
 export function SubmitButton({ children, tone = "primary" }: { children: ReactNode; tone?: "primary" | "danger" | "secondary" }) {
   const classes = {
-    primary: "bg-blue-600 text-white hover:bg-blue-700",
-    danger: "border border-red-200 bg-red-50 text-red-700",
-    secondary: "border border-slate-300 bg-white text-slate-700",
+    primary: "bg-brand-gradient text-white shadow-brand hover:shadow-brand-lg active:scale-[0.98]",
+    danger: "border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 active:scale-[0.98]",
+    secondary: "border border-border bg-background text-foreground hover:bg-muted/10 active:scale-[0.98]",
   };
 
   return (
-    <button className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${classes[tone]}`} type="submit">
+    <button className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${classes[tone]}`} type="submit">
       {children}
     </button>
   );
