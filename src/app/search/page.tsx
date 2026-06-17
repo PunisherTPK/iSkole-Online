@@ -6,7 +6,7 @@ import { getCatalog, searchCatalog } from "@/lib/data";
 
 export const metadata: Metadata = {
   title: "Search",
-  description: "Search iSkole Online by grade, subject, lesson, paper, and question keyword.",
+  description: "Search iSkole Online by curriculum, level, subject, resource, and past paper.",
 };
 
 type Props = {
@@ -20,7 +20,7 @@ export default async function SearchPage({ searchParams }: Props) {
 
   return (
     <>
-      <PageHeader title="Search" description="Find grades, subjects, lessons, papers, and questions across iSkole Online." />
+      <PageHeader title="Search" description="Find curriculums, levels, subjects, resources, and past papers across iSkole Online." />
       <section className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
         <SearchBar defaultValue={q} />
         <div className="mt-8">

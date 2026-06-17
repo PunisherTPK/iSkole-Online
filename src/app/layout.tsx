@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { ConfirmForms } from "@/components/admin/ConfirmForms";
 import { Footer } from "@/components/Footer";
 import { Navbar } from "@/components/Navbar";
 import "./globals.css";
@@ -12,7 +13,7 @@ export const metadata: Metadata = {
     default: "iSkole Online - Sri Lankan Past Papers and Question Bank",
     template: "%s | iSkole Online",
   },
-  description: "Search Sri Lankan school past papers, lessons, questions, answers, and explanations by grade and subject.",
+  description: "Search Sri Lankan educational resources by curriculum, level, subject, and past paper.",
   openGraph: {
     type: "website",
     siteName: "iSkole Online",
@@ -27,6 +28,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
     <html lang="en">
       <body className="min-h-screen font-sans antialiased">
         <Navbar />
+        <ConfirmForms />
         <main>{children}</main>
         <Footer />
       </body>

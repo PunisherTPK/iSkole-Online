@@ -1,3 +1,12 @@
+-- Structure-first CMS migration for iSkole Online.
+-- This migration replaces the old grade/lesson/question-bank model.
+
+drop table if exists public.questions cascade;
+drop table if exists public.papers cascade;
+drop table if exists public.lessons cascade;
+drop table if exists public.subjects cascade;
+drop table if exists public.grades cascade;
+
 create extension if not exists "pgcrypto";
 
 create table if not exists public.curriculums (
@@ -81,21 +90,12 @@ create table if not exists public.teacher_assignments (
   unique (teacher_id, subject_id)
 );
 
-create or replace function public.set_updated_at()
-returns trigger as $$
-begin
-  new.updated_at = now();
-  return new;
-end;
-$$ language plpgsql;
-
-drop trigger if exists resources_set_updated_at on public.resources;
-create trigger resources_set_updated_at before update on public.resources
-for each row execute function public.set_updated_at();
-
-drop trigger if exists past_papers_set_updated_at on public.past_papers;
-create trigger past_papers_set_updated_at before update on public.past_papers
-for each row execute function public.set_updated_at();
+insert into public.resource_types (name) values
+  ('Notes'),
+  ('Videos'),
+  ('Topical Questions'),
+  ('Past Papers')
+on conflict (name) do nothing;
 
 alter table public.curriculums enable row level security;
 alter table public.levels enable row level security;
@@ -116,7 +116,4 @@ create policy "Public can read active past papers" on public.past_papers for sel
 create index if not exists levels_curriculum_id_idx on public.levels(curriculum_id);
 create index if not exists subjects_level_id_idx on public.subjects(level_id);
 create index if not exists resources_subject_id_idx on public.resources(subject_id);
-create index if not exists resources_resource_type_id_idx on public.resources(resource_type_id);
 create index if not exists past_papers_subject_id_idx on public.past_papers(subject_id);
-create index if not exists teacher_assignments_teacher_id_idx on public.teacher_assignments(teacher_id);
-create index if not exists teacher_assignments_subject_id_idx on public.teacher_assignments(subject_id);

@@ -7,13 +7,13 @@ export function SearchBar({ compact = false, defaultValue = "" }: SearchBarProps
   return (
     <form action="/search" className={`flex w-full gap-2 ${compact ? "sm:w-80" : "mx-auto max-w-2xl"}`}>
       <label className="sr-only" htmlFor={compact ? "nav-search" : "global-search"}>
-        Search past papers and question bank
+        Search educational resources
       </label>
       <input
         id={compact ? "nav-search" : "global-search"}
         name="q"
         defaultValue={defaultValue}
-        placeholder="Search grade, subject, lesson, question..."
+        placeholder="Search curriculum, level, subject, resource..."
         className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
       />
       <button

@@ -1,0 +1,14 @@
+export default function AdminLoading() {
+  return (
+    <section className="min-h-[calc(100vh-153px)] bg-slate-100 px-4 py-6 sm:px-6">
+      <div className="mx-auto max-w-7xl">
+        <div className="h-9 w-64 animate-pulse rounded-lg bg-slate-200" />
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }, (_, index) => (
+            <div key={index} className="h-32 animate-pulse rounded-lg bg-white" />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
