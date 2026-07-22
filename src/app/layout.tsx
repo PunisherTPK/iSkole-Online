@@ -18,10 +18,10 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://iskole.online";
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "iSkole Online - Sri Lankan Past Papers and Question Bank",
+    default: "iSkole Online - Topical Questions and Discussion Videos",
     template: "%s | iSkole Online",
   },
-  description: "Search Sri Lankan educational resources by curriculum, level, subject, and past paper.",
+  description: "Learn through structured curriculums, topical MCQs, discussion videos, and teacher profiles.",
   openGraph: {
     type: "website",
     siteName: "iSkole Online",

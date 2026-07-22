@@ -33,7 +33,7 @@ export default async function LevelPage({ params }: Props) {
 
   return (
     <>
-      <PageHeader eyebrow={curriculum.name} title={level.name} description="Choose a subject to view resources and past papers." />
+      <PageHeader eyebrow={curriculum.name} title={level.name} description="Choose a subject to view units, topical MCQs, and discussion videos." />
       <PageContainer>
         <Breadcrumbs items={[{ label: curriculum.name, href: pathForCurriculum(curriculum) }, { label: level.name }]} />
         <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -42,7 +42,7 @@ export default async function LevelPage({ params }: Props) {
               <SubjectCard
                 title={subject.name}
                 href={pathForSubject(curriculum, level, subject)}
-                description="Open notes, videos, topical questions, and past papers."
+                description="Open units, topics, and sub topics."
               />
             </FadeIn>
           ))}

@@ -1,42 +1,43 @@
-insert into public.resource_types (id, name) values
-  ('00000000-0000-0000-0000-000000000101', 'Notes'),
-  ('00000000-0000-0000-0000-000000000102', 'Videos'),
-  ('00000000-0000-0000-0000-000000000103', 'Topical Questions'),
-  ('00000000-0000-0000-0000-000000000104', 'Past Papers')
-on conflict (name) do nothing;
-
 insert into public.curriculums (id, name, slug, display_order) values
-  ('10000000-0000-0000-0000-000000000001', 'Sample Curriculum', 'sample-curriculum', 1)
-on conflict (slug) do nothing;
+  ('00000000-0000-0000-0000-000000000201', 'Cambridge', 'cambridge', 1)
+on conflict (id) do nothing;
 
 insert into public.levels (id, curriculum_id, name, slug, display_order) values
-  ('20000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'Sample Level', 'sample-level', 1)
-on conflict (curriculum_id, slug) do nothing;
-
-insert into public.subjects (id, level_id, name, slug, display_order) values
-  ('30000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 'Sample Subject', 'sample-subject', 1)
-on conflict (level_id, slug) do nothing;
-
-insert into public.resources (id, subject_id, resource_type_id, title, description, content, display_order) values
-  (
-    '40000000-0000-0000-0000-000000000001',
-    '30000000-0000-0000-0000-000000000001',
-    '00000000-0000-0000-0000-000000000101',
-    'Getting Started Notes',
-    'A starter resource for this subject.',
-    'Use this field for lesson notes, teacher guidance, and embedded learning content.',
-    1
-  )
+  ('00000000-0000-0000-0000-000000000202', '00000000-0000-0000-0000-000000000201', 'IGCSE', 'igcse', 1)
 on conflict (id) do nothing;
 
-insert into public.past_papers (id, subject_id, year, session, display_order) values
-  ('50000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', 2026, 'Sample Session', 1)
+insert into public.subjects (id, level_id, name, slug, code, display_order) values
+  ('00000000-0000-0000-0000-000000000203', '00000000-0000-0000-0000-000000000202', 'Physics', 'physics-0625', '0625', 1)
 on conflict (id) do nothing;
 
-insert into public.teachers (id, name, email, role) values
-  ('60000000-0000-0000-0000-000000000001', 'Sample Teacher', 'teacher@example.com', 'teacher')
-on conflict (email) do nothing;
+insert into public.units (id, subject_id, name, slug, description, display_order) values
+  ('00000000-0000-0000-0000-000000000204', '00000000-0000-0000-0000-000000000203', 'Unit 1', 'unit-1', 'Physical quantities and measurement foundations.', 1)
+on conflict (id) do nothing;
+
+insert into public.topics (id, unit_id, name, slug, description, display_order) values
+  ('00000000-0000-0000-0000-000000000205', '00000000-0000-0000-0000-000000000204', 'Physical Quantities', 'physical-quantities', 'Core quantities, units, and measurement language.', 1)
+on conflict (id) do nothing;
+
+insert into public.sub_topics (id, topic_id, name, slug, description, display_order) values
+  ('00000000-0000-0000-0000-000000000206', '00000000-0000-0000-0000-000000000205', 'Scalars and Vectors', 'scalars-and-vectors', 'Practice distinguishing magnitude-only quantities from directional quantities.', 1)
+on conflict (id) do nothing;
+
+insert into public.teachers (id, name, slug, email, subjects, curriculums, qualifications, experience_years, short_bio, biography, social_links) values
+  ('00000000-0000-0000-0000-000000000207', 'Amara Perera', 'amara-perera', 'amara@example.com', array['Physics 0625'], array['Cambridge IGCSE'], 'BSc Physics, PGCE', 8, 'Builds clear topical question pathways for Cambridge Physics learners.', 'Amara specializes in helping students turn syllabus points into repeatable problem-solving habits.', '{"youtube":"https://youtube.com"}')
+on conflict (id) do nothing;
 
 insert into public.teacher_assignments (id, teacher_id, subject_id) values
-  ('70000000-0000-0000-0000-000000000001', '60000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001')
-on conflict (teacher_id, subject_id) do nothing;
+  ('00000000-0000-0000-0000-000000000208', '00000000-0000-0000-0000-000000000207', '00000000-0000-0000-0000-000000000203')
+on conflict (id) do nothing;
+
+insert into public.question_sets (id, sub_topic_id, teacher_id, title, description, display_order) values
+  ('00000000-0000-0000-0000-000000000209', '00000000-0000-0000-0000-000000000206', '00000000-0000-0000-0000-000000000207', 'Scalars and Vectors MCQ Practice', 'A short diagnostic set for the first pass through the topic.', 1)
+on conflict (id) do nothing;
+
+insert into public.mcq_questions (id, question_set_id, question_image_url, correct_answer, explanation, display_order) values
+  ('00000000-0000-0000-0000-000000000210', '00000000-0000-0000-0000-000000000209', 'https://dummyimage.com/960x540/ffffff/111827.png&text=Which+quantity+is+a+vector%3F+A+Mass+B+Speed+C+Velocity+D+Time', 'C', 'Velocity includes both magnitude and direction.', 1)
+on conflict (id) do nothing;
+
+insert into public.discussion_videos (id, sub_topic_id, teacher_id, title, youtube_url, youtube_video_id, description, resources) values
+  ('00000000-0000-0000-0000-000000000211', '00000000-0000-0000-0000-000000000206', '00000000-0000-0000-0000-000000000207', 'Scalars and Vectors Discussion', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', 'dQw4w9WgXcQ', 'Walk through the key definitions, traps, and answer patterns for this sub topic.', 'Download the syllabus checklist from your class folder.')
+on conflict (id) do nothing;

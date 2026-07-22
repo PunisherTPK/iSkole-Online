@@ -1,11 +1,13 @@
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { CurriculumCard, FeaturedCurriculumCard } from "@/components/ui/custom/CurriculumCard";
 import { FadeIn } from "@/components/ui/custom/FadeIn";
 import { SearchBar } from "@/components/ui/custom/SearchBar";
 import { SectionHeader } from "@/components/ui/custom/SectionHeader";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { getCatalog, levelsForCurriculum, pathForCurriculum } from "@/lib/data";
-import { BookOpen, RefreshCw, Sparkles } from "lucide-react";
+import { BookOpen, RefreshCw, Sparkles, UserRound } from "lucide-react";
+import Link from "next/link";
 
 export default async function HomePage() {
   const catalog = await getCatalog();
@@ -29,7 +31,7 @@ export default async function HomePage() {
                 <span className="text-gradient">One Question at a Time</span>
               </h1>
               <p className="mt-6 max-w-xl text-lg leading-8 text-muted-foreground">
-                Choose a curriculum, level, and subject to find notes, videos, topical questions, and past papers.
+                Choose a curriculum, level, and subject to attempt topical MCQs, watch discussion videos, and learn with trusted teachers.
               </p>
               <div className="mt-8">
                 <SearchBar />
@@ -80,6 +82,45 @@ export default async function HomePage() {
           </div>
         </PageContainer>
       </section>
+
+      <PageContainer>
+        <FadeIn>
+          <SectionHeader
+            title="Featured Teachers"
+            description="Meet the educators building topical question sets and discussion videos for iSkole Online."
+          />
+        </FadeIn>
+        <div className="flex snap-x gap-5 overflow-x-auto pb-3">
+          {catalog.teachers.slice(0, 6).map((teacher, index) => (
+            <FadeIn key={teacher.id} delay={index * 0.05}>
+              <article className="w-[300px] snap-start rounded-2xl border border-border bg-card p-5 shadow-brand transition-all hover:-translate-y-1 hover:border-primary/30 hover:shadow-brand-lg">
+                <div className="flex items-center gap-4">
+                  {teacher.photo_url ? (
+                    <img
+                      src={teacher.photo_url}
+                      alt={teacher.name}
+                      className="h-16 w-16 rounded-2xl object-cover"
+                    />
+                  ) : (
+                    <div className="grid h-16 w-16 place-items-center rounded-2xl bg-primary/10 text-primary">
+                      <UserRound className="h-7 w-7" aria-hidden="true" />
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <h2 className="truncate text-lg font-bold text-foreground">{teacher.name}</h2>
+                    <p className="truncate text-sm text-muted-foreground">{teacher.subjects.join(", ") || "Teacher"}</p>
+                    <p className="truncate text-xs font-semibold text-primary">{teacher.curriculums.join(", ") || "Multiple curricula"}</p>
+                  </div>
+                </div>
+                <p className="mt-4 line-clamp-3 text-sm leading-6 text-muted-foreground">{teacher.short_bio}</p>
+                <Button asChild className="mt-5 w-full rounded-xl">
+                  <Link href={`/teachers/${teacher.slug}`}>View Profile</Link>
+                </Button>
+              </article>
+            </FadeIn>
+          ))}
+        </div>
+      </PageContainer>
 
       <PageContainer>
         <FadeIn>

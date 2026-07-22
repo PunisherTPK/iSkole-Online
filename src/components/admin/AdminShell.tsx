@@ -7,8 +7,11 @@ const navItems = [
   "Curriculums",
   "Levels",
   "Subjects",
-  "Resources",
-  "Past Papers",
+  "Units",
+  "Topics",
+  "Sub Topics",
+  "MCQ Questions",
+  "Discussion Videos",
   "Teachers",
   "Settings",
 ];
@@ -17,7 +20,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const role = getAdminRole();
   const visibleLabels =
     role === "teacher"
-      ? navItems.filter((label) => ["Dashboard", "Resources", "Past Papers", "Teachers"].includes(label))
+      ? ["Dashboard", "My Profile", "My Subjects", "My Topics", "Question Sets", "Discussion Videos", "Statistics"]
       : navItems;
 
   return (

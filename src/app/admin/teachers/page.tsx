@@ -26,12 +26,11 @@ export default async function TeachersAdminPage() {
           title={role === "teacher" ? "My Subjects" : "Teachers"}
           description="Assign subjects so teachers can focus on the folders they manage."
         />
-        {role === "super_admin" ? (
+        {role === "admin" ? (
           <AdminCard title="Create Teacher">
-            <form action={createTeacher} className="grid gap-3 md:grid-cols-[1fr_1fr_180px_auto]">
+            <form action={createTeacher} className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
               <TextInput label="Name" name="name" />
               <TextInput label="Email" name="email" type="email" />
-              <SelectInput label="Role" name="role" options={[["teacher", "Teacher"], ["super_admin", "Super Admin"]]} />
               <div className="self-end"><SubmitButton>Create</SubmitButton></div>
             </form>
           </AdminCard>
@@ -40,14 +39,13 @@ export default async function TeachersAdminPage() {
           {catalog.teachers.map((teacher) => {
             const assignments = catalog.teacherAssignments.filter((item) => item.teacher_id === teacher.id);
             return (
-              <AdminCard key={teacher.id} title={teacher.name} description={`${teacher.email} - ${teacher.role.replace("_", " ")}`}>
-                {role === "super_admin" ? (
+              <AdminCard key={teacher.id} title={teacher.name} description={teacher.email}>
+                {role === "admin" ? (
                   <>
-                    <form action={updateTeacher} className="grid gap-3 md:grid-cols-[1fr_1fr_180px_auto]">
+                    <form action={updateTeacher} className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
                       <input type="hidden" name="id" value={teacher.id} />
                       <TextInput label="Name" name="name" defaultValue={teacher.name} />
                       <TextInput label="Email" name="email" type="email" defaultValue={teacher.email} />
-                      <SelectInput label="Role" name="role" options={[["teacher", "Teacher"], ["super_admin", "Super Admin"]]} defaultValue={teacher.role} />
                       <div className="self-end"><SubmitButton>Save</SubmitButton></div>
                     </form>
                     <form action={assignTeacherSubject} className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
@@ -68,7 +66,7 @@ export default async function TeachersAdminPage() {
                         <p className="text-sm font-semibold text-foreground">
                           {curriculum?.name} &gt; {level?.name} &gt; {subject?.name}
                         </p>
-                        {role === "super_admin" ? (
+                        {role === "admin" ? (
                           <button className="mt-2 text-sm font-semibold text-destructive hover:underline" type="submit">
                             Remove
                           </button>
@@ -77,7 +75,7 @@ export default async function TeachersAdminPage() {
                     );
                   })}
                 </div>
-                {role === "super_admin" ? (
+                {role === "admin" ? (
                   <form action={deleteTeacher} className="mt-4" data-confirm="Delete this teacher profile?">
                     <input type="hidden" name="id" value={teacher.id} />
                     <SubmitButton tone="danger">Delete Teacher</SubmitButton>
@@ -91,3 +89,4 @@ export default async function TeachersAdminPage() {
     </AdminShell>
   );
 }
+

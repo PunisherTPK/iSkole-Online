@@ -3,12 +3,12 @@
 import {
   BookOpen,
   ChevronLeft,
+  CirclePlay,
   FileText,
   FolderTree,
   GraduationCap,
   LayoutDashboard,
   LogOut,
-  ScrollText,
   Settings,
   Users,
 } from "lucide-react";
@@ -31,11 +31,19 @@ type NavItem = {
 
 const mainNav: NavItem[] = [
   { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
+  { label: "My Profile", href: "/admin/teachers", icon: Users },
+  { label: "My Subjects", href: "/admin/subjects", icon: GraduationCap },
+  { label: "My Topics", href: "/admin/topics", icon: FolderTree },
+  { label: "Question Sets", href: "/admin/resources", icon: FileText },
   { label: "Curriculums", href: "/admin/curriculums", icon: BookOpen },
   { label: "Levels", href: "/admin/levels", icon: FolderTree },
   { label: "Subjects", href: "/admin/subjects", icon: GraduationCap },
-  { label: "Resources", href: "/admin/resources", icon: FileText },
-  { label: "Past Papers", href: "/admin/past-papers", icon: ScrollText },
+  { label: "Units", href: "/admin/units", icon: FolderTree },
+  { label: "Topics", href: "/admin/topics", icon: FolderTree },
+  { label: "Sub Topics", href: "/admin/sub-topics", icon: FolderTree },
+  { label: "MCQ Questions", href: "/admin/resources", icon: FileText },
+  { label: "Discussion Videos", href: "/admin/past-papers", icon: CirclePlay },
+  { label: "Statistics", href: "/admin", icon: LayoutDashboard },
 ];
 
 const secondaryNav: NavItem[] = [

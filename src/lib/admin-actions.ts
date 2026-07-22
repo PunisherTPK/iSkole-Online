@@ -118,51 +118,135 @@ export async function reorderSubjects(formData: FormData) {
   await reorder("subjects", value(formData, "ordered_ids"));
 }
 
-export async function createResource(formData: FormData) {
-  await insert("resources", resourcePayload(formData));
+export async function createUnit(formData: FormData) {
+  const name = value(formData, "name");
+  await insert("units", {
+    subject_id: value(formData, "subject_id"),
+    name,
+    slug: slugify(name),
+    description: value(formData, "description"),
+    display_order: numberValue(formData, "display_order"),
+  });
 }
 
-export async function updateResource(formData: FormData) {
-  await update("resources", value(formData, "id"), resourcePayload(formData));
+export async function updateUnit(formData: FormData) {
+  const name = value(formData, "name");
+  await update("units", value(formData, "id"), {
+    subject_id: value(formData, "subject_id"),
+    name,
+    slug: slugify(name),
+    description: value(formData, "description"),
+    display_order: numberValue(formData, "display_order"),
+  });
 }
 
-export async function deleteResource(formData: FormData) {
-  await softDelete("resources", value(formData, "id"));
+export async function deleteUnit(formData: FormData) {
+  await softDelete("units", value(formData, "id"));
 }
 
-export async function reorderResources(formData: FormData) {
-  await reorder("resources", value(formData, "ordered_ids"));
+export async function createTopic(formData: FormData) {
+  const name = value(formData, "name");
+  await insert("topics", {
+    unit_id: value(formData, "unit_id"),
+    name,
+    slug: slugify(name),
+    description: value(formData, "description"),
+    display_order: numberValue(formData, "display_order"),
+  });
 }
 
-export async function createPastPaper(formData: FormData) {
-  await insert("past_papers", pastPaperPayload(formData));
+export async function updateTopic(formData: FormData) {
+  const name = value(formData, "name");
+  await update("topics", value(formData, "id"), {
+    unit_id: value(formData, "unit_id"),
+    name,
+    slug: slugify(name),
+    description: value(formData, "description"),
+    display_order: numberValue(formData, "display_order"),
+  });
 }
 
-export async function updatePastPaper(formData: FormData) {
-  await update("past_papers", value(formData, "id"), pastPaperPayload(formData));
+export async function deleteTopic(formData: FormData) {
+  await softDelete("topics", value(formData, "id"));
 }
 
-export async function deletePastPaper(formData: FormData) {
-  await softDelete("past_papers", value(formData, "id"));
+export async function createSubTopic(formData: FormData) {
+  const name = value(formData, "name");
+  await insert("sub_topics", {
+    topic_id: value(formData, "topic_id"),
+    name,
+    slug: slugify(name),
+    description: value(formData, "description"),
+    display_order: numberValue(formData, "display_order"),
+  });
 }
 
-export async function reorderPastPapers(formData: FormData) {
-  await reorder("past_papers", value(formData, "ordered_ids"));
+export async function updateSubTopic(formData: FormData) {
+  const name = value(formData, "name");
+  await update("sub_topics", value(formData, "id"), {
+    topic_id: value(formData, "topic_id"),
+    name,
+    slug: slugify(name),
+    description: value(formData, "description"),
+    display_order: numberValue(formData, "display_order"),
+  });
+}
+
+export async function deleteSubTopic(formData: FormData) {
+  await softDelete("sub_topics", value(formData, "id"));
+}
+
+export async function createQuestionSet(formData: FormData) {
+  await insert("question_sets", questionSetPayload(formData));
+}
+
+export async function updateQuestionSet(formData: FormData) {
+  await update("question_sets", value(formData, "id"), questionSetPayload(formData));
+}
+
+export async function deleteQuestionSet(formData: FormData) {
+  await softDelete("question_sets", value(formData, "id"));
+}
+
+export async function createMcqQuestion(formData: FormData) {
+  await insert("mcq_questions", mcqPayload(formData));
+}
+
+export async function updateMcqQuestion(formData: FormData) {
+  await update("mcq_questions", value(formData, "id"), mcqPayload(formData));
+}
+
+export async function deleteMcqQuestion(formData: FormData) {
+  await softDelete("mcq_questions", value(formData, "id"));
+}
+
+export async function createDiscussionVideo(formData: FormData) {
+  await insert("discussion_videos", discussionVideoPayload(formData));
+}
+
+export async function updateDiscussionVideo(formData: FormData) {
+  await update("discussion_videos", value(formData, "id"), discussionVideoPayload(formData));
+}
+
+export async function deleteDiscussionVideo(formData: FormData) {
+  await softDelete("discussion_videos", value(formData, "id"));
 }
 
 export async function createTeacher(formData: FormData) {
   await insert("teachers", {
     name: value(formData, "name"),
+    slug: slugify(value(formData, "name")),
     email: value(formData, "email"),
-    role: value(formData, "role"),
+    subjects: [],
+    curriculums: [],
   });
 }
 
 export async function updateTeacher(formData: FormData) {
   await update("teachers", value(formData, "id"), {
     name: value(formData, "name"),
+    slug: slugify(value(formData, "name")),
     email: value(formData, "email"),
-    role: value(formData, "role"),
   });
 }
 
@@ -226,28 +310,42 @@ function requireSupabase() {
   return supabase;
 }
 
-function resourcePayload(formData: FormData) {
+function questionSetPayload(formData: FormData) {
   return {
-    subject_id: value(formData, "subject_id"),
-    resource_type_id: value(formData, "resource_type_id"),
+    sub_topic_id: value(formData, "sub_topic_id"),
+    teacher_id: optionalValue(formData, "teacher_id"),
     title: value(formData, "title"),
     description: value(formData, "description"),
-    content: value(formData, "content"),
-    file_url: optionalValue(formData, "file_url"),
-    youtube_url: optionalValue(formData, "youtube_url"),
     display_order: numberValue(formData, "display_order"),
   };
 }
 
-function pastPaperPayload(formData: FormData) {
+function mcqPayload(formData: FormData) {
   return {
-    subject_id: value(formData, "subject_id"),
-    year: numberValue(formData, "year"),
-    session: value(formData, "session"),
-    paper_file_url: optionalValue(formData, "paper_file_url"),
-    mark_scheme_file_url: optionalValue(formData, "mark_scheme_file_url"),
+    question_set_id: value(formData, "question_set_id"),
+    question_image_url: value(formData, "question_image_url"),
+    correct_answer: value(formData, "correct_answer"),
+    explanation: value(formData, "explanation"),
     display_order: numberValue(formData, "display_order"),
   };
+}
+
+function discussionVideoPayload(formData: FormData) {
+  const youtubeUrl = value(formData, "youtube_url");
+  return {
+    sub_topic_id: value(formData, "sub_topic_id"),
+    teacher_id: optionalValue(formData, "teacher_id"),
+    title: value(formData, "title"),
+    youtube_url: youtubeUrl,
+    youtube_video_id: extractYouTubeId(youtubeUrl),
+    description: value(formData, "description"),
+    resources: value(formData, "resources"),
+  };
+}
+
+function extractYouTubeId(url: string) {
+  const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
+  return match?.[1] ?? url;
 }
 
 function value(formData: FormData, key: string) {

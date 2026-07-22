@@ -19,7 +19,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   return {
     title: `${curriculum.name} Levels`,
-    description: `Browse levels and subjects for ${curriculum.name} on iSkole Online.`,
+    description: `Browse levels, subjects, topical questions, and discussion videos for ${curriculum.name}.`,
   };
 }
 
@@ -33,7 +33,7 @@ export default async function CurriculumPage({ params }: Props) {
 
   return (
     <>
-      <PageHeader eyebrow="Curriculum" title={curriculum.name} description="Choose a level to continue into subject resources." />
+      <PageHeader eyebrow="Curriculum" title={curriculum.name} description="Choose a level to continue into subjects, units, and topical question sets." />
       <PageContainer>
         <Breadcrumbs items={[{ label: curriculum.name }]} />
         <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
@@ -6,17 +5,9 @@ import { PageContainer } from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EmptyState } from "@/components/ui/custom/EmptyState";
 import { FadeIn } from "@/components/ui/custom/FadeIn";
-import { ResourceCard } from "@/components/ui/custom/ResourceCard";
-import { Button } from "@/components/ui/button";
-import { SectionHeader } from "@/components/ui/custom/SectionHeader";
-import {
-  getSubjectBySlugs,
-  pathForCurriculum,
-  pathForLevel,
-  pathForPastPapers,
-  resourcesForSubject,
-} from "@/lib/data";
-import { FileText } from "lucide-react";
+import { SubjectCard } from "@/components/ui/custom/CurriculumCard";
+import { getSubjectBySlugs, pathForCurriculum, pathForLevel, pathForUnit, unitsForSubject } from "@/lib/data";
+import { FolderOpen } from "lucide-react";
 
 type Props = {
   params: Promise<{ curriculumSlug: string; levelSlug: string; subjectSlug: string }>;
@@ -25,73 +16,33 @@ type Props = {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { curriculumSlug, levelSlug, subjectSlug } = await params;
   const { curriculum, level, subject } = await getSubjectBySlugs(curriculumSlug, levelSlug, subjectSlug);
-
   if (!curriculum || !level || !subject) return {};
-
   return {
     title: `${curriculum.name} ${level.name}: ${subject.name}`,
-    description: `Browse resources and past papers for ${subject.name}.`,
+    description: `Browse units, topics, MCQs, and discussion videos for ${subject.name}.`,
   };
 }
 
 export default async function SubjectPage({ params }: Props) {
   const { curriculumSlug, levelSlug, subjectSlug } = await params;
   const { catalog, curriculum, level, subject } = await getSubjectBySlugs(curriculumSlug, levelSlug, subjectSlug);
-
   if (!curriculum || !level || !subject) notFound();
 
-  const regularTypes = catalog.resourceTypes.filter((type) => type.name !== "Past Papers");
+  const units = unitsForSubject(catalog, subject);
 
   return (
     <>
-      <PageHeader
-        eyebrow={`${curriculum.name} / ${level.name}`}
-        title={subject.name}
-        description="Browse resources by type or open dedicated past papers."
-      />
+      <PageHeader eyebrow={`${curriculum.name} / ${level.name}`} title={subject.name} description="Choose a unit to continue into topical MCQs and discussion videos." />
       <PageContainer>
-        <Breadcrumbs
-          items={[
-            { label: curriculum.name, href: pathForCurriculum(curriculum) },
-            { label: level.name, href: pathForLevel(curriculum, level) },
-            { label: subject.name },
-          ]}
-        />
-        <div className="mt-8 flex flex-wrap gap-3">
-          {regularTypes.map((type) => (
-            <Button key={type.id} variant="outline" asChild className="rounded-xl">
-              <a href={`#${type.id}`}>{type.name}</a>
-            </Button>
+        <Breadcrumbs items={[{ label: curriculum.name, href: pathForCurriculum(curriculum) }, { label: level.name, href: pathForLevel(curriculum, level) }, { label: subject.name }]} />
+        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {units.map((unit, index) => (
+            <FadeIn key={unit.id} delay={index * 0.05}>
+              <SubjectCard title={unit.name} href={pathForUnit(curriculum, level, subject, unit)} description={unit.description || "Open topics for this unit."} />
+            </FadeIn>
           ))}
-          <Button asChild className="rounded-xl">
-            <Link href={pathForPastPapers(curriculum, level, subject)}>Past Papers</Link>
-          </Button>
         </div>
-        <div className="mt-10 grid gap-12">
-          {regularTypes.map((type, typeIndex) => {
-            const resources = resourcesForSubject(catalog, subject, type.id);
-            return (
-              <FadeIn key={type.id} delay={typeIndex * 0.05}>
-                <section id={type.id}>
-                  <SectionHeader title={type.name} />
-                  <div className="grid gap-5">
-                    {resources.length ? (
-                      resources.map((resource) => (
-                        <ResourceCard key={resource.id} resource={resource} typeName={type.name} />
-                      ))
-                    ) : (
-                      <EmptyState
-                        icon={FileText}
-                        title="No resources uploaded yet"
-                        description={`There are no ${type.name.toLowerCase()} for this subject yet. Check back soon.`}
-                      />
-                    )}
-                  </div>
-                </section>
-              </FadeIn>
-            );
-          })}
-        </div>
+        {!units.length ? <EmptyState icon={FolderOpen} title="No units yet" description="Units will appear here once a teacher uploads the structure." /> : null}
       </PageContainer>
     </>
   );
