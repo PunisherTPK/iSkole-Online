@@ -27,7 +27,7 @@ export default async function AdminPage({ searchParams }: Props) {
   const catalog = await getCatalog();
   const role = getAdminRole();
   const adminReady = Boolean(getSupabaseAdminClient());
-  const recentQuestionSets = [...catalog.questionSets].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 5);
+  const recentQuestionTypes = [...catalog.questionTypes].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 5);
 
   return (
     <AdminShell>
@@ -44,21 +44,21 @@ export default async function AdminPage({ searchParams }: Props) {
           <FadeIn><StatsCard label="Curriculums" value={catalog.curriculums.length} icon={BookOpen} /></FadeIn>
           <FadeIn delay={0.05}><StatsCard label="Subjects" value={catalog.subjects.length} icon={GraduationCap} /></FadeIn>
           <FadeIn delay={0.1}><StatsCard label="Sub Topics" value={catalog.subTopics.length} icon={FolderTree} /></FadeIn>
-          <FadeIn delay={0.15}><StatsCard label="MCQ Questions" value={catalog.mcqQuestions.length} icon={FileQuestion} /></FadeIn>
+          <FadeIn delay={0.15}><StatsCard label="Questions" value={catalog.questions.length} icon={FileQuestion} /></FadeIn>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
           <FadeIn delay={0.2}>
             <Card>
-              <CardHeader><CardTitle className="text-lg">Recent Question Sets</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-lg">Recent Question Types</CardTitle></CardHeader>
               <CardContent className="grid gap-3">
-                {recentQuestionSets.map((set) => (
+                {recentQuestionTypes.map((set) => (
                   <div key={set.id} className="rounded-xl border border-border bg-muted/5 p-4">
                     <p className="font-semibold text-foreground">{set.title}</p>
                     <p className="mt-1 text-sm text-muted-foreground">{set.description || "No description"}</p>
                   </div>
                 ))}
-                {!recentQuestionSets.length ? <p className="text-sm text-muted-foreground">No question sets uploaded yet.</p> : null}
+                {!recentQuestionTypes.length ? <p className="text-sm text-muted-foreground">No question types uploaded yet.</p> : null}
               </CardContent>
             </Card>
           </FadeIn>
@@ -69,8 +69,8 @@ export default async function AdminPage({ searchParams }: Props) {
               <CardContent className="grid gap-2">
                 {[
                   { label: "Manage Teachers", href: "/admin/teachers", icon: Users },
-                  { label: "Manage MCQs", href: "/admin/resources", icon: FileQuestion },
-                  { label: "Manage Videos", href: "/admin/past-papers", icon: CirclePlay },
+                  { label: "Content Manager", href: "/admin/content-manager", icon: FileQuestion },
+                  { label: "Manage Videos", href: "/admin/content-manager", icon: CirclePlay },
                   { label: "Manage Subjects", href: "/admin/subjects", icon: GraduationCap },
                 ].filter((action) => role === "admin" || !action.href.includes("subjects")).map((action) => (
                   <Button key={action.href} variant="outline" asChild className="h-11 justify-start rounded-xl">

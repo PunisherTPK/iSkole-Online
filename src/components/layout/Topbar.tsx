@@ -1,8 +1,9 @@
 "use client";
 
-import { Menu } from "lucide-react";
+import { Home, Menu, Search, Users } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { SearchBar } from "@/components/ui/custom/SearchBar";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
@@ -11,14 +12,16 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { cn } from "@/lib/utils";
 
 export function Topbar() {
+  const pathname = usePathname();
   const [visible, setVisible] = useState(false);
+  const isHome = pathname === "/";
 
   useEffect(() => {
-    const updateVisibility = () => setVisible(window.scrollY > 120);
+    const updateVisibility = () => setVisible(!isHome || window.scrollY > 120);
     updateVisibility();
     window.addEventListener("scroll", updateVisibility, { passive: true });
     return () => window.removeEventListener("scroll", updateVisibility);
-  }, []);
+  }, [isHome]);
 
   return (
     <header
@@ -41,6 +44,15 @@ export function Topbar() {
         </div>
 
         <nav className="flex items-center gap-2">
+          <Button variant="ghost" asChild className="hidden sm:inline-flex">
+            <Link href="/"><Home className="mr-2 h-4 w-4" />Home</Link>
+          </Button>
+          <Button variant="ghost" asChild className="hidden sm:inline-flex">
+            <Link href="/teachers"><Users className="mr-2 h-4 w-4" />Mentors</Link>
+          </Button>
+          <Button variant="ghost" asChild className="hidden sm:inline-flex">
+            <Link href="/search"><Search className="mr-2 h-4 w-4" />Search</Link>
+          </Button>
           <ThemeToggle />
           <Button variant="ghost" asChild className="hidden sm:inline-flex">
             <Link href="/admin">Login</Link>
@@ -58,11 +70,17 @@ export function Topbar() {
               </SheetHeader>
               <div className="mt-6 grid gap-6">
                 <SearchBar compact />
+                <Link className="flex items-center gap-2 text-base font-semibold text-foreground hover:text-primary" href="/">
+                  <Home className="h-5 w-5" />Home
+                </Link>
+                <Link className="flex items-center gap-2 text-base font-semibold text-foreground hover:text-primary" href="/teachers">
+                  <Users className="h-5 w-5" />Mentors
+                </Link>
+                <Link className="flex items-center gap-2 text-base font-semibold text-foreground hover:text-primary" href="/search">
+                  <Search className="h-5 w-5" />Search
+                </Link>
                 <Link className="text-base font-semibold text-foreground hover:text-primary" href="/admin">
                   Login
-                </Link>
-                <Link className="text-base font-semibold text-foreground hover:text-primary" href="/search">
-                  Search
                 </Link>
               </div>
             </SheetContent>

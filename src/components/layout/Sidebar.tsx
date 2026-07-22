@@ -3,8 +3,7 @@
 import {
   BookOpen,
   ChevronLeft,
-  CirclePlay,
-  FileText,
+  ClipboardList,
   FolderTree,
   GraduationCap,
   LayoutDashboard,
@@ -31,23 +30,19 @@ type NavItem = {
 
 const mainNav: NavItem[] = [
   { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
-  { label: "My Profile", href: "/admin/teachers", icon: Users },
   { label: "My Subjects", href: "/admin/subjects", icon: GraduationCap },
-  { label: "My Topics", href: "/admin/topics", icon: FolderTree },
-  { label: "Question Sets", href: "/admin/resources", icon: FileText },
+  { label: "Content Manager", href: "/admin/content-manager", icon: FolderTree },
+  { label: "Profile", href: "/admin/teachers", icon: Users },
+  { label: "Statistics", href: "/admin", icon: LayoutDashboard },
   { label: "Curriculums", href: "/admin/curriculums", icon: BookOpen },
   { label: "Levels", href: "/admin/levels", icon: FolderTree },
   { label: "Subjects", href: "/admin/subjects", icon: GraduationCap },
-  { label: "Units", href: "/admin/units", icon: FolderTree },
-  { label: "Topics", href: "/admin/topics", icon: FolderTree },
-  { label: "Sub Topics", href: "/admin/sub-topics", icon: FolderTree },
-  { label: "MCQ Questions", href: "/admin/resources", icon: FileText },
-  { label: "Discussion Videos", href: "/admin/past-papers", icon: CirclePlay },
-  { label: "Statistics", href: "/admin", icon: LayoutDashboard },
+  { label: "Teachers", href: "/admin/teachers", icon: Users },
+  { label: "Students", href: "/admin", icon: Users },
+  { label: "Assignments", href: "/admin/teachers", icon: ClipboardList },
 ];
 
 const secondaryNav: NavItem[] = [
-  { label: "Teachers", href: "/admin/teachers", icon: Users },
   { label: "Settings", href: "/admin/settings", icon: Settings },
 ];
 

@@ -37,7 +37,7 @@ export default async function TeachersAdminPage() {
         ) : null}
         <div className="grid gap-4">
           {catalog.teachers.map((teacher) => {
-            const assignments = catalog.teacherAssignments.filter((item) => item.teacher_id === teacher.id);
+            const assignments = catalog.teacherSubjects.filter((item) => item.teacher_id === teacher.id);
             return (
               <AdminCard key={teacher.id} title={teacher.name} description={teacher.email}>
                 {role === "admin" ? (

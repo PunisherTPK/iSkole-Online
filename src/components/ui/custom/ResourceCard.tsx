@@ -3,9 +3,9 @@
 import { ExternalLink, FileQuestion, Play } from "lucide-react";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
-import type { DiscussionVideo, QuestionSet } from "@/lib/types";
+import type { DiscussionVideo, QuestionType } from "@/lib/types";
 
-export function QuestionSetCard({ questionSet, href, count }: { questionSet: QuestionSet; href: string; count: number }) {
+export function QuestionSetCard({ questionSet, href, count }: { questionSet: QuestionType; href: string; count: number }) {
   return (
     <motion.article className="rounded-2xl border border-border bg-card p-6 shadow-brand" whileHover={{ y: -4 }} transition={{ duration: 0.3 }}>
       <Badge variant="outline" className="border-primary/20 text-primary">MCQ Section</Badge>

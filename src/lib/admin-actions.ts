@@ -196,28 +196,28 @@ export async function deleteSubTopic(formData: FormData) {
   await softDelete("sub_topics", value(formData, "id"));
 }
 
-export async function createQuestionSet(formData: FormData) {
-  await insert("question_sets", questionSetPayload(formData));
+export async function createQuestionType(formData: FormData) {
+  await insert("question_types", questionTypePayload(formData));
 }
 
-export async function updateQuestionSet(formData: FormData) {
-  await update("question_sets", value(formData, "id"), questionSetPayload(formData));
+export async function updateQuestionType(formData: FormData) {
+  await update("question_types", value(formData, "id"), questionTypePayload(formData));
 }
 
-export async function deleteQuestionSet(formData: FormData) {
-  await softDelete("question_sets", value(formData, "id"));
+export async function deleteQuestionType(formData: FormData) {
+  await softDelete("question_types", value(formData, "id"));
 }
 
-export async function createMcqQuestion(formData: FormData) {
-  await insert("mcq_questions", mcqPayload(formData));
+export async function createQuestion(formData: FormData) {
+  await insert("questions", questionPayload(formData));
 }
 
-export async function updateMcqQuestion(formData: FormData) {
-  await update("mcq_questions", value(formData, "id"), mcqPayload(formData));
+export async function updateQuestion(formData: FormData) {
+  await update("questions", value(formData, "id"), questionPayload(formData));
 }
 
-export async function deleteMcqQuestion(formData: FormData) {
-  await softDelete("mcq_questions", value(formData, "id"));
+export async function deleteQuestion(formData: FormData) {
+  await softDelete("questions", value(formData, "id"));
 }
 
 export async function createDiscussionVideo(formData: FormData) {
@@ -255,14 +255,14 @@ export async function deleteTeacher(formData: FormData) {
 }
 
 export async function assignTeacherSubject(formData: FormData) {
-  await insert("teacher_assignments", {
+  await insert("teacher_subjects", {
     teacher_id: value(formData, "teacher_id"),
     subject_id: value(formData, "subject_id"),
   });
 }
 
 export async function deleteTeacherAssignment(formData: FormData) {
-  await hardDelete("teacher_assignments", value(formData, "id"));
+  await hardDelete("teacher_subjects", value(formData, "id"));
 }
 
 async function insert(table: string, payload: Record<string, unknown>) {
@@ -310,22 +310,25 @@ function requireSupabase() {
   return supabase;
 }
 
-function questionSetPayload(formData: FormData) {
+function questionTypePayload(formData: FormData) {
   return {
     sub_topic_id: value(formData, "sub_topic_id"),
     teacher_id: optionalValue(formData, "teacher_id"),
+    type: value(formData, "type"),
     title: value(formData, "title"),
     description: value(formData, "description"),
     display_order: numberValue(formData, "display_order"),
   };
 }
 
-function mcqPayload(formData: FormData) {
+function questionPayload(formData: FormData) {
   return {
-    question_set_id: value(formData, "question_set_id"),
+    question_type_id: value(formData, "question_type_id"),
     question_image_url: value(formData, "question_image_url"),
-    correct_answer: value(formData, "correct_answer"),
+    correct_answer: optionalValue(formData, "correct_answer"),
+    marking_scheme: value(formData, "marking_scheme"),
     explanation: value(formData, "explanation"),
+    difficulty: value(formData, "difficulty") || "medium",
     display_order: numberValue(formData, "display_order"),
   };
 }
@@ -333,7 +336,7 @@ function mcqPayload(formData: FormData) {
 function discussionVideoPayload(formData: FormData) {
   const youtubeUrl = value(formData, "youtube_url");
   return {
-    sub_topic_id: value(formData, "sub_topic_id"),
+    question_type_id: value(formData, "question_type_id"),
     teacher_id: optionalValue(formData, "teacher_id"),
     title: value(formData, "title"),
     youtube_url: youtubeUrl,

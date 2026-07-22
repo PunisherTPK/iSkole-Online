@@ -4,7 +4,7 @@ import type {
   Catalog,
   Curriculum,
   Level,
-  QuestionSet,
+  QuestionType,
   SearchResult,
   Subject,
   SubTopic,
@@ -27,9 +27,9 @@ export async function getCatalog(): Promise<Catalog> {
     topics,
     subTopics,
     teachers,
-    teacherAssignments,
-    questionSets,
-    mcqQuestions,
+    teacherSubjects,
+    questionTypes,
+    questions,
     discussionVideos,
   ] = await Promise.all([
     supabase.from("profiles").select("*"),
@@ -40,9 +40,9 @@ export async function getCatalog(): Promise<Catalog> {
     supabase.from("topics").select("*").is("deleted_at", null).order("display_order"),
     supabase.from("sub_topics").select("*").is("deleted_at", null).order("display_order"),
     supabase.from("teachers").select("*").is("deleted_at", null).order("name"),
-    supabase.from("teacher_assignments").select("*"),
-    supabase.from("question_sets").select("*").is("deleted_at", null).order("display_order"),
-    supabase.from("mcq_questions").select("*").is("deleted_at", null).order("display_order"),
+    supabase.from("teacher_subjects").select("*"),
+    supabase.from("question_types").select("*").is("deleted_at", null).order("display_order"),
+    supabase.from("questions").select("*").is("deleted_at", null).order("display_order"),
     supabase.from("discussion_videos").select("*").is("deleted_at", null).order("created_at", { ascending: false }),
   ]);
 
@@ -55,9 +55,9 @@ export async function getCatalog(): Promise<Catalog> {
     topics,
     subTopics,
     teachers,
-    teacherAssignments,
-    questionSets,
-    mcqQuestions,
+    teacherSubjects,
+    questionTypes,
+    questions,
     discussionVideos,
   ];
 
@@ -72,9 +72,9 @@ export async function getCatalog(): Promise<Catalog> {
     topics: (topics.data ?? []) as Catalog["topics"],
     subTopics: (subTopics.data ?? []) as Catalog["subTopics"],
     teachers: normalizeTeachers((teachers.data ?? []) as Catalog["teachers"]),
-    teacherAssignments: (teacherAssignments.data ?? []) as Catalog["teacherAssignments"],
-    questionSets: (questionSets.data ?? []) as Catalog["questionSets"],
-    mcqQuestions: (mcqQuestions.data ?? []) as Catalog["mcqQuestions"],
+    teacherSubjects: (teacherSubjects.data ?? []) as Catalog["teacherSubjects"],
+    questionTypes: (questionTypes.data ?? []) as Catalog["questionTypes"],
+    questions: (questions.data ?? []) as Catalog["questions"],
     discussionVideos: (discussionVideos.data ?? []) as Catalog["discussionVideos"],
   };
 }
@@ -124,16 +124,16 @@ export function subTopicsForTopic(catalog: Catalog, topic: Topic) {
   return catalog.subTopics.filter((item) => item.topic_id === topic.id).sort(byDisplayOrder);
 }
 
-export function questionSetsForSubTopic(catalog: Catalog, subTopic: SubTopic) {
-  return catalog.questionSets.filter((item) => item.sub_topic_id === subTopic.id).sort(byDisplayOrder);
+export function questionTypesForSubTopic(catalog: Catalog, subTopic: SubTopic) {
+  return catalog.questionTypes.filter((item) => item.sub_topic_id === subTopic.id).sort(byDisplayOrder);
 }
 
-export function questionsForSet(catalog: Catalog, questionSet: QuestionSet) {
-  return catalog.mcqQuestions.filter((item) => item.question_set_id === questionSet.id).sort(byDisplayOrder);
+export function questionsForType(catalog: Catalog, questionType: QuestionType) {
+  return catalog.questions.filter((item) => item.question_type_id === questionType.id).sort(byDisplayOrder);
 }
 
-export function discussionVideoForSubTopic(catalog: Catalog, subTopic: SubTopic) {
-  return catalog.discussionVideos.find((item) => item.sub_topic_id === subTopic.id);
+export function discussionVideoForQuestionType(catalog: Catalog, questionType: QuestionType) {
+  return catalog.discussionVideos.find((item) => item.question_type_id === questionType.id);
 }
 
 export function pathForCurriculum(curriculum: Curriculum) {
@@ -168,8 +168,13 @@ export function videosForTeacher(catalog: Catalog, teacher: Teacher) {
   return catalog.discussionVideos.filter((video) => video.teacher_id === teacher.id);
 }
 
-export function questionSetsForTeacher(catalog: Catalog, teacher: Teacher) {
-  return catalog.questionSets.filter((set) => set.teacher_id === teacher.id);
+export function questionTypesForTeacher(catalog: Catalog, teacher: Teacher) {
+  return catalog.questionTypes.filter((set) => set.teacher_id === teacher.id);
+}
+
+export function subjectsForTeacher(catalog: Catalog, teacher: Teacher) {
+  const subjectIds = catalog.teacherSubjects.filter((item) => item.teacher_id === teacher.id).map((item) => item.subject_id);
+  return catalog.subjects.filter((subject) => subjectIds.includes(subject.id));
 }
 
 export function extractYouTubeId(url: string) {
@@ -221,6 +226,16 @@ export function searchCatalog(catalog: Catalog, query: string): SearchResult[] {
     const context = getSubTopicContext(catalog, subTopic);
     if (context && matches(normalized, `${subTopic.name} ${subTopic.description}`)) {
       results.push({ title: subTopic.name, description: `${context.topic.name}`, href: pathForSubTopic(context.curriculum, context.level, context.subject, context.unit, context.topic, subTopic), type: "Sub Topic" });
+    }
+  }
+
+  for (const questionType of catalog.questionTypes) {
+    if (matches(normalized, `${questionType.title} ${questionType.type} ${questionType.description}`)) {
+      const subTopic = catalog.subTopics.find((item) => item.id === questionType.sub_topic_id);
+      const context = subTopic ? getSubTopicContext(catalog, subTopic) : null;
+      if (context) {
+        results.push({ title: questionType.title, description: `${context.subTopic.name} > ${questionType.type.toUpperCase()}`, href: pathForSubTopic(context.curriculum, context.level, context.subject, context.unit, context.topic, context.subTopic), type: "Question Type" });
+      }
     }
   }
 

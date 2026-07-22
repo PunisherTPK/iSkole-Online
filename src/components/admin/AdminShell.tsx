@@ -4,15 +4,12 @@ import { getAdminRole } from "@/lib/admin-session";
 
 const navItems = [
   "Dashboard",
+  "Teachers",
+  "Students",
   "Curriculums",
   "Levels",
   "Subjects",
-  "Units",
-  "Topics",
-  "Sub Topics",
-  "MCQ Questions",
-  "Discussion Videos",
-  "Teachers",
+  "Assignments",
   "Settings",
 ];
 
@@ -20,7 +17,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const role = getAdminRole();
   const visibleLabels =
     role === "teacher"
-      ? ["Dashboard", "My Profile", "My Subjects", "My Topics", "Question Sets", "Discussion Videos", "Statistics"]
+      ? ["Dashboard", "My Subjects", "Content Manager", "Profile", "Statistics", "Settings"]
       : navItems;
 
   return (

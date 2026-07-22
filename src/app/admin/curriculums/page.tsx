@@ -9,7 +9,7 @@ import { getCatalog } from "@/lib/data";
 
 export default async function CurriculumsAdminPage() {
   if (!(await isAdminAuthenticated())) redirect("/admin");
-  if (getAdminRole() === "teacher") redirect("/admin/resources");
+  if (getAdminRole() === "teacher") redirect("/admin/content-manager");
 
   const catalog = await getCatalog();
 

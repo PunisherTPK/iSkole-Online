@@ -7,7 +7,7 @@ import { getAdminRole } from "@/lib/admin-session";
 
 export default async function SettingsAdminPage() {
   if (!(await isAdminAuthenticated())) redirect("/admin");
-  if (getAdminRole() === "teacher") redirect("/admin/resources");
+  if (getAdminRole() === "teacher") redirect("/admin/content-manager");
 
   return (
     <AdminShell>

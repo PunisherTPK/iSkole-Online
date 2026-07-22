@@ -3,12 +3,12 @@
 import { Check, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import type { McqQuestion, QuestionSet } from "@/lib/types";
+import type { Question, QuestionType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const answers = ["A", "B", "C", "D"] as const;
 
-export function McqRunner({ questionSet, questions }: { questionSet: QuestionSet; questions: McqQuestion[] }) {
+export function McqRunner({ questionType, questions }: { questionType: QuestionType; questions: Question[] }) {
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<Record<string, "A" | "B" | "C" | "D">>({});
   const [submitted, setSubmitted] = useState(false);
@@ -34,7 +34,7 @@ export function McqRunner({ questionSet, questions }: { questionSet: QuestionSet
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-wide text-primary">MCQ Section</p>
-          <h2 className="mt-1 text-2xl font-bold text-foreground">{questionSet.title}</h2>
+          <h2 className="mt-1 text-2xl font-bold text-foreground">{questionType.title}</h2>
           <p className="mt-2 text-sm text-muted-foreground">Question {index + 1} of {questions.length}</p>
         </div>
         {submitted ? (

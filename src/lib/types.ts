@@ -92,17 +92,21 @@ export type Teacher = {
   deleted_at?: string | null;
 };
 
-export type TeacherAssignment = {
+export type TeacherSubject = {
   id: string;
   teacher_id: string;
   subject_id: string;
   created_at?: string;
 };
 
-export type QuestionSet = {
+export type QuestionTypeKind = "mcq" | "structured";
+export type Difficulty = "easy" | "medium" | "hard";
+
+export type QuestionType = {
   id: string;
   sub_topic_id: string;
   teacher_id: string | null;
+  type: QuestionTypeKind;
   title: string;
   description: string;
   display_order: number;
@@ -111,12 +115,14 @@ export type QuestionSet = {
   deleted_at?: string | null;
 };
 
-export type McqQuestion = {
+export type Question = {
   id: string;
-  question_set_id: string;
+  question_type_id: string;
   question_image_url: string;
-  correct_answer: "A" | "B" | "C" | "D";
+  correct_answer: "A" | "B" | "C" | "D" | null;
+  marking_scheme: string;
   explanation: string;
+  difficulty: Difficulty;
   display_order: number;
   created_at?: string;
   updated_at?: string;
@@ -125,7 +131,7 @@ export type McqQuestion = {
 
 export type DiscussionVideo = {
   id: string;
-  sub_topic_id: string;
+  question_type_id: string;
   teacher_id: string | null;
   title: string;
   youtube_url: string;
@@ -140,7 +146,7 @@ export type DiscussionVideo = {
 export type StudentAttempt = {
   id: string;
   profile_id: string;
-  question_set_id: string;
+  question_type_id: string;
   total_questions: number;
   correct_answers: number;
   score_percentage: number;
@@ -150,7 +156,7 @@ export type StudentAttempt = {
 export type StudentAnswer = {
   id: string;
   attempt_id: string;
-  mcq_question_id: string;
+  question_id: string;
   selected_answer: "A" | "B" | "C" | "D";
   is_correct: boolean;
 };
@@ -164,9 +170,9 @@ export type Catalog = {
   topics: Topic[];
   subTopics: SubTopic[];
   teachers: Teacher[];
-  teacherAssignments: TeacherAssignment[];
-  questionSets: QuestionSet[];
-  mcqQuestions: McqQuestion[];
+  teacherSubjects: TeacherSubject[];
+  questionTypes: QuestionType[];
+  questions: Question[];
   discussionVideos: DiscussionVideo[];
 };
 
@@ -179,5 +185,5 @@ export type SearchResult = {
   title: string;
   description: string;
   href: string;
-  type: "Curriculum" | "Level" | "Subject" | "Unit" | "Topic" | "Sub Topic" | "Teacher";
+  type: "Curriculum" | "Level" | "Subject" | "Unit" | "Topic" | "Sub Topic" | "Question Type" | "Teacher";
 };

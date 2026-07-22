@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageContainer } from "@/components/layout/PageContainer";
-import { getCatalog, questionSetsForTeacher, teacherBySlug, videosForTeacher } from "@/lib/data";
+import { getCatalog, questionTypesForTeacher, teacherBySlug, videosForTeacher } from "@/lib/data";
 import { ExternalLink, FileQuestion, Play, UserRound } from "lucide-react";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -22,7 +22,7 @@ export default async function TeacherProfilePage({ params }: Props) {
   if (!teacher) notFound();
 
   const videos = videosForTeacher(catalog, teacher);
-  const questionSets = questionSetsForTeacher(catalog, teacher);
+  const questionTypes = questionTypesForTeacher(catalog, teacher);
 
   return (
     <section>
@@ -61,19 +61,19 @@ export default async function TeacherProfilePage({ params }: Props) {
 
             <div className="grid gap-5 sm:grid-cols-2">
               <Metric icon={Play} label="Discussion Videos" value={videos.length} />
-              <Metric icon={FileQuestion} label="Question Sets" value={questionSets.length} />
+              <Metric icon={FileQuestion} label="Question Types" value={questionTypes.length} />
             </div>
 
             <section className="rounded-2xl border border-border bg-card p-6 shadow-brand">
               <h2 className="text-xl font-bold text-foreground">Created Content</h2>
               <div className="mt-4 grid gap-3">
-                {[...videos.map((item) => ({ id: item.id, label: item.title, type: "Discussion Video" })), ...questionSets.map((item) => ({ id: item.id, label: item.title, type: "Question Set" }))].map((item) => (
+                {[...videos.map((item) => ({ id: item.id, label: item.title, type: "Discussion Video" })), ...questionTypes.map((item) => ({ id: item.id, label: item.title, type: "Question Type" }))].map((item) => (
                   <div key={item.id} className="rounded-xl border border-border bg-muted/5 p-4">
                     <Badge variant="outline">{item.type}</Badge>
                     <p className="mt-2 font-semibold text-foreground">{item.label}</p>
                   </div>
                 ))}
-                {!videos.length && !questionSets.length ? <p className="text-sm text-muted-foreground">No public content yet.</p> : null}
+                {!videos.length && !questionTypes.length ? <p className="text-sm text-muted-foreground">No public content yet.</p> : null}
               </div>
             </section>
             <Button asChild variant="outline" className="w-fit rounded-xl"><Link href="/teachers">Back to Teachers</Link></Button>

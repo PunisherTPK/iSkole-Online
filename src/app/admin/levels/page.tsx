@@ -12,7 +12,7 @@ type Props = { searchParams: Promise<{ curriculum?: string }> };
 
 export default async function LevelsAdminPage({ searchParams }: Props) {
   if (!(await isAdminAuthenticated())) redirect("/admin");
-  if (getAdminRole() === "teacher") redirect("/admin/resources");
+  if (getAdminRole() === "teacher") redirect("/admin/content-manager");
 
   const { curriculum: selectedId } = await searchParams;
   const catalog = await getCatalog();
