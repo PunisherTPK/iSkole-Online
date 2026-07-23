@@ -6,24 +6,17 @@ import { StatsCard } from "@/components/ui/custom/StatsCard";
 import { FadeIn } from "@/components/ui/custom/FadeIn";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { isAdminAuthenticated, loginAdmin } from "@/lib/admin-actions";
 import { getAdminRole } from "@/lib/admin-session";
 import { getCatalog } from "@/lib/data";
 import { getSupabaseAdminClient } from "@/lib/supabase";
 import { BookOpen, CirclePlay, FileQuestion, FolderTree, GraduationCap, Plus, Users } from "lucide-react";
-import { Input } from "@/components/ui/input";
 
 export const metadata: Metadata = {
   title: "Dashboard",
   robots: { index: false, follow: false },
 };
 
-type Props = { searchParams: Promise<{ error?: string }> };
-
-export default async function AdminPage({ searchParams }: Props) {
-  const { error } = await searchParams;
-  if (!(await isAdminAuthenticated())) return <AdminLogin error={error} />;
-
+export default async function AdminPage() {
   const catalog = await getCatalog();
   const role = getAdminRole();
   const adminReady = Boolean(getSupabaseAdminClient());
@@ -83,29 +76,5 @@ export default async function AdminPage({ searchParams }: Props) {
         </div>
       </div>
     </AdminShell>
-  );
-}
-
-function AdminLogin({ error }: { error?: string }) {
-  return (
-    <section className="mx-auto flex min-h-[70vh] max-w-md items-center px-4 py-16 sm:px-6">
-      <div className="w-full rounded-2xl border border-border bg-card p-8 shadow-brand-lg">
-        <p className="text-sm font-semibold uppercase tracking-wide text-primary">Login</p>
-        <h1 className="mt-2 text-2xl font-bold text-foreground">Sign in</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Use your email and password. Google login can be connected through Supabase Auth next.</p>
-        <form action={loginAdmin} className="mt-6 grid gap-4">
-          <label className="grid gap-2 text-sm font-semibold text-foreground">
-            Email
-            <Input name="email" type="email" className="h-11 rounded-xl" placeholder="teacher@example.com" />
-          </label>
-          <label className="grid gap-2 text-sm font-semibold text-foreground">
-            Password
-            <Input name="password" type="password" required className="h-11 rounded-xl" />
-          </label>
-          {error ? <p className="text-sm font-semibold text-destructive">Invalid credentials.</p> : null}
-          <Button type="submit" className="h-11 rounded-xl">Sign in</Button>
-        </form>
-      </div>
-    </section>
   );
 }

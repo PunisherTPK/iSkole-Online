@@ -38,8 +38,8 @@ const mainNav: NavItem[] = [
   { label: "Levels", href: "/admin/levels", icon: FolderTree },
   { label: "Subjects", href: "/admin/subjects", icon: GraduationCap },
   { label: "Teachers", href: "/admin/teachers", icon: Users },
-  { label: "Students", href: "/admin", icon: Users },
-  { label: "Assignments", href: "/admin/teachers", icon: ClipboardList },
+  { label: "Students", href: "/admin/students", icon: Users },
+  { label: "Assignments", href: "/admin/assignments", icon: ClipboardList },
 ];
 
 const secondaryNav: NavItem[] = [

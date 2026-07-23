@@ -1,14 +1,8 @@
-import { redirect } from "next/navigation";
 import { AdminCard } from "@/components/admin/AdminForms";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AdminShell } from "@/components/admin/AdminShell";
-import { isAdminAuthenticated } from "@/lib/admin-actions";
-import { getAdminRole } from "@/lib/admin-session";
 
 export default async function SettingsAdminPage() {
-  if (!(await isAdminAuthenticated())) redirect("/admin");
-  if (getAdminRole() === "teacher") redirect("/admin/content-manager");
-
   return (
     <AdminShell>
       <div className="grid gap-6">

@@ -4,14 +4,13 @@ import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { ReorderList } from "@/components/admin/ReorderList";
 import { Card } from "@/components/ui/card";
-import { createLevel, deleteLevel, isAdminAuthenticated, reorderLevels, updateLevel } from "@/lib/admin-actions";
+import { createLevel, deleteLevel, reorderLevels, updateLevel } from "@/lib/admin-actions";
 import { getAdminRole } from "@/lib/admin-session";
 import { getCatalog, levelsForCurriculum } from "@/lib/data";
 
 type Props = { searchParams: Promise<{ curriculum?: string }> };
 
 export default async function LevelsAdminPage({ searchParams }: Props) {
-  if (!(await isAdminAuthenticated())) redirect("/admin");
   if (getAdminRole() === "teacher") redirect("/admin/content-manager");
 
   const { curriculum: selectedId } = await searchParams;

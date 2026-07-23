@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { AdminCard, SelectInput, SubmitButton } from "@/components/admin/AdminForms";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AdminShell } from "@/components/admin/AdminShell";
@@ -16,7 +15,6 @@ import {
   deleteSubTopic,
   deleteTopic,
   deleteUnit,
-  isAdminAuthenticated,
   updateDiscussionVideo,
   updateQuestion,
   updateQuestionType,
@@ -30,8 +28,6 @@ import { getCatalog, subjectsForTeacher } from "@/lib/data";
 type Props = { searchParams: Promise<{ subject?: string }> };
 
 export default async function ContentManagerPage({ searchParams }: Props) {
-  if (!(await isAdminAuthenticated())) redirect("/admin");
-
   const query = await searchParams;
   const catalog = await getCatalog();
   const role = getAdminRole();

@@ -76,11 +76,13 @@ export function SelectInput({
   name,
   options,
   defaultValue,
+  required = false,
 }: {
   label: string;
   name: string;
   options: Array<[string, string]>;
   defaultValue?: string;
+  required?: boolean;
 }) {
   return (
     <label className="grid gap-2 text-sm font-semibold text-foreground">
@@ -89,7 +91,7 @@ export function SelectInput({
         name={name}
         defaultValue={defaultValue}
         className="min-h-11 rounded-xl border border-input bg-background px-4 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-        required
+        required={required}
       >
         {options.map(([value, labelText]) => (
           <option key={value} value={value}>

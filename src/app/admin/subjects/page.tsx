@@ -4,14 +4,13 @@ import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { ReorderList } from "@/components/admin/ReorderList";
 import { Card } from "@/components/ui/card";
-import { createSubject, deleteSubject, isAdminAuthenticated, reorderSubjects, updateSubject } from "@/lib/admin-actions";
+import { createSubject, deleteSubject, reorderSubjects, updateSubject } from "@/lib/admin-actions";
 import { getAdminRole } from "@/lib/admin-session";
 import { getCatalog, levelsForCurriculum, subjectsForLevel } from "@/lib/data";
 
 type Props = { searchParams: Promise<{ curriculum?: string; level?: string }> };
 
 export default async function SubjectsAdminPage({ searchParams }: Props) {
-  if (!(await isAdminAuthenticated())) redirect("/admin");
   if (getAdminRole() === "teacher") redirect("/admin/content-manager");
 
   const query = await searchParams;

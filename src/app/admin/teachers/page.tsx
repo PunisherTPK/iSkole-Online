@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { AdminCard, SelectInput, SubmitButton, TextInput } from "@/components/admin/AdminForms";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AdminShell } from "@/components/admin/AdminShell";
@@ -7,15 +6,12 @@ import {
   createTeacher,
   deleteTeacher,
   deleteTeacherAssignment,
-  isAdminAuthenticated,
   updateTeacher,
 } from "@/lib/admin-actions";
 import { getAdminRole } from "@/lib/admin-session";
 import { getCatalog } from "@/lib/data";
 
 export default async function TeachersAdminPage() {
-  if (!(await isAdminAuthenticated())) redirect("/admin");
-
   const catalog = await getCatalog();
   const role = getAdminRole();
 

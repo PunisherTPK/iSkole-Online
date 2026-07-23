@@ -3,12 +3,11 @@ import { AdminCard, SubmitButton, TextInput } from "@/components/admin/AdminForm
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { ReorderList } from "@/components/admin/ReorderList";
-import { createCurriculum, deleteCurriculum, isAdminAuthenticated, reorderCurriculums, updateCurriculum } from "@/lib/admin-actions";
+import { createCurriculum, deleteCurriculum, reorderCurriculums, updateCurriculum } from "@/lib/admin-actions";
 import { getAdminRole } from "@/lib/admin-session";
 import { getCatalog } from "@/lib/data";
 
 export default async function CurriculumsAdminPage() {
-  if (!(await isAdminAuthenticated())) redirect("/admin");
   if (getAdminRole() === "teacher") redirect("/admin/content-manager");
 
   const catalog = await getCatalog();
