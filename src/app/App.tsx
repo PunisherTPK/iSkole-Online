@@ -440,7 +440,6 @@ function McqRunner({ questions }: { questions: Question[] }) {
                 key={a}
                 disabled={submitted}
                 onClick={() => setSelected((s) => ({ ...s, [q.id]: a }))}
-                className={`h-12 rounded-xl border text-sm font-bold ${submitted && isCorrect ? "border-emerald-500 bg-emerald-500/10" : submitted && isSelected ? "border-destructive bg-destructive/10" : isSelected ? "border-primary bg-primary/10" : "border-border"}`}
               >
                 {a}
               </button>
@@ -625,7 +624,9 @@ function AdminArea({
       </aside>
 
       <div>
-        {tab === "dashboard" ? <DashboardPanel catalog={catalog} role={role!} /> : null}
+        {tab === "dashboard" && role !== null ? (
+          <DashboardPanel catalog={catalog} role={role} />
+        ) : null}
         {tab === "curriculums" && role === "admin" ? <CurriculumsPanel catalog={catalog} run={run} /> : null}
         {tab === "levels" && role === "admin" ? <LevelsPanel catalog={catalog} run={run} /> : null}
         {tab === "subjects" && role === "admin" ? <SubjectsPanel catalog={catalog} run={run} /> : null}
@@ -637,7 +638,7 @@ function AdminArea({
   );
 }
 
-function DashboardPanel({ catalog, role }: { catalog: Catalog; role: "admin" | "teacher" }) {
+function DashboardPanel({ catalog, role }: { catalog: Catalog; role: "admin" | "teacher" | "student" }) {
   const stats = [
     { label: "Curriculums", value: catalog.curriculums.length, icon: BookOpen },
     { label: "Subjects", value: catalog.subjects.length, icon: GraduationCap },
@@ -646,7 +647,7 @@ function DashboardPanel({ catalog, role }: { catalog: Catalog; role: "admin" | "
   ];
   return (
     <div>
-      <h1 className="text-2xl font-bold">{role === "admin" ? "Admin Dashboard" : "Teacher Dashboard"}</h1>
+      <h1 className="text-2xl font-bold">{role === "admin" ? "Admin Dashboard" : role === "teacher" ? "Teacher Dashboard" : "Student Dashboard"}</h1>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s) => (
           <Card key={s.label}><CardContent className="p-5">
