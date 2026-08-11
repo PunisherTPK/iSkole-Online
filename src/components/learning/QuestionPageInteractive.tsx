@@ -54,7 +54,20 @@ function InteractiveQuestionCard({ question, pageType }: { question: Interactive
             </div>
           </>
         ) : (
-          <div className="grid gap-6 lg:grid-cols-2 lg:items-start"><div><p className="mb-3 text-sm font-semibold text-foreground">Question</p><QuestionImage question={question} /></div><div><div className="mb-3 flex items-center justify-between gap-3"><p className="text-sm font-semibold text-foreground">Answer</p><button type="button" onClick={() => setShowAnswer((value) => !value)} className="rounded-xl border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted">{showAnswer ? "Hide Answer" : "Show Answer"}</button></div>{showAnswer ? <AnswerPanel question={question} /> : <div className="flex min-h-48 items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 p-6 text-center text-sm leading-6 text-muted-foreground">Click “Show Answer” to display the answer alongside the question.</div>}</div></div>
+          <div className="min-h-[70vh]">
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-foreground">{question.question_type === "essay" ? "Essay Question" : "Structured Question"}</p>
+              <button type="button" onClick={() => setShowAnswer((value) => !value)} className="rounded-xl border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted">{showAnswer ? "Hide Answer" : "Show Answer"}</button>
+            </div>
+            {showAnswer ? (
+              <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+                <div className="min-w-0"><QuestionImage question={question} /></div>
+                <div className="min-w-0 lg:sticky lg:top-6"><AnswerPanel question={question} /></div>
+              </div>
+            ) : (
+              <div className="w-full"><QuestionImage question={question} /></div>
+            )}
+          </div>
         )}
       </div>
     </article>
@@ -66,5 +79,5 @@ function QuestionImage({ question }: { question: InteractiveQuestion }) {
 }
 
 function AnswerPanel({ question }: { question: InteractiveQuestion }) {
-  return <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-5">{question.correct_option && <div><p className="text-xs font-semibold uppercase tracking-wide text-primary">Correct Answer</p><p className="mt-2 text-2xl font-bold text-foreground">{question.correct_option}</p></div>}{question.answer_text && <div className="mt-4"><p className="text-xs font-semibold uppercase tracking-wide text-primary">Explanation</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{question.answer_text}</p></div>}{question.answer_image_url && <div className="mt-4 overflow-hidden rounded-xl border border-border bg-card"><img src={question.answer_image_url} alt={`Answer for question ${question.question_number}`} className="block h-auto w-full" /></div>}{!question.correct_option && !question.answer_text && !question.answer_image_url && <p className="text-sm text-muted-foreground">No answer has been added yet.</p>}</div>;
+  return <div className="rounded-xl border border-primary/20 bg-primary/5 p-5">{question.correct_option && <div><p className="text-xs font-semibold uppercase tracking-wide text-primary">Correct Answer</p><p className="mt-2 text-2xl font-bold text-foreground">{question.correct_option}</p></div>}{question.answer_text && <div className="mt-4"><p className="text-xs font-semibold uppercase tracking-wide text-primary">Explanation</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{question.answer_text}</p></div>}{question.answer_image_url && <div className="mt-4 overflow-hidden rounded-xl border border-border bg-card"><img src={question.answer_image_url} alt={`Answer for question ${question.question_number}`} className="block h-auto w-full" /></div>}{!question.correct_option && !question.answer_text && !question.answer_image_url && <p className="text-sm text-muted-foreground">No answer has been added yet.</p>}</div>;
 }
