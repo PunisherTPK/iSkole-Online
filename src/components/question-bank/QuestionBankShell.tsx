@@ -309,72 +309,94 @@ export default function QuestionBankShell({
                 </p>
               )}
             </div>
+            {(nodes.length > 0 || questionPages.length > 0) && (
+              <div
+                className={
+                  nodes.length > 0 && questionPages.length > 0
+                    ? "grid gap-8 lg:grid-cols-[1fr_1fr]"
+                    : "grid gap-8"
+                }
+              >
 
-            <div className="grid gap-8 lg:grid-cols-[1fr_1fr]">
-
-              {/* Content nodes */}
-              <div>
-                <div className="mb-4 flex items-center gap-2">
-                  <Folder
-                    size={19}
-                    className="text-primary"
-                  />
-
-                  <h3 className="font-bold text-foreground">
-                    {selectedNode
-                      ? "Subsections"
-                      : "Content"}
-                  </h3>
-                </div>
-
-                {nodes.length > 0 ? (
-                  <div className="grid gap-3">
-                    {nodes.map((item) => (
-                      <ExplorerLink
-                        key={item.id}
-                        href={`${base}?curriculum=${selectedCurriculum}&level=${selectedLevel}&subject=${selectedSubject}&node=${item.id}`}
-                        icon={<Folder size={20} />}
-                        title={item.name}
-                        description={
-                          item.description ??
-                          "Open this section."
-                        }
+                {/* Content nodes */}
+                {nodes.length > 0 && (
+                  <div>
+                    <div className="mb-4 flex items-center gap-2">
+                      <Folder
+                        size={19}
+                        className="text-primary"
                       />
-                    ))}
-                  </div>
-                ) : (
-                  <EmptyState text="No subsections have been created here." />
-                )}
-              </div>
 
-              {/* Question Pages */}
-              <div>
-                <div className="mb-4 flex items-center gap-2">
+                      <h3 className="font-bold text-foreground">
+                        {selectedNode
+                          ? "Subsections"
+                          : "Content"}
+                      </h3>
+                    </div>
+
+                    <div className="grid gap-3">
+                      {nodes.map((item) => (
+                        <ExplorerLink
+                          key={item.id}
+                          href={`${base}?curriculum=${selectedCurriculum}&level=${selectedLevel}&subject=${selectedSubject}&node=${item.id}`}
+                          icon={<Folder size={20} />}
+                          title={item.name}
+                          description={
+                            item.description ??
+                            "Open this section."
+                          }
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Question Pages */}
+                {questionPages.length > 0 && (
+                  <div>
+                    <div className="mb-4 flex items-center gap-2">
+                      <FileQuestion
+                        size={19}
+                        className="text-primary"
+                      />
+
+                      <h3 className="font-bold text-foreground">
+                        Question Pages
+                      </h3>
+                    </div>
+
+                    <div className="grid gap-3">
+                      {questionPages.map((page) => (
+                        <QuestionPageCard
+                          key={page.id}
+                          page={page}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            )}
+
+            {/* Nothing here */}
+            {nodes.length === 0 &&
+              questionPages.length === 0 && (
+                <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center">
                   <FileQuestion
-                    size={19}
-                    className="text-primary"
+                    size={30}
+                    className="mx-auto text-muted-foreground"
                   />
 
-                  <h3 className="font-bold text-foreground">
-                    Question Pages
+                  <h3 className="mt-4 font-semibold text-foreground">
+                    Nothing here yet
                   </h3>
+
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    No content or Question Pages have been added here yet.
+                  </p>
                 </div>
-
-                {questionPages.length > 0 ? (
-                  <div className="grid gap-3">
-                    {questionPages.map((page) => (
-                      <QuestionPageCard
-                        key={page.id}
-                        page={page}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <EmptyState text="No Question Pages are available here." />
-                )}
-              </div>
-
-            </div>
+              )}
 
           </section>
         )}
