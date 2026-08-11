@@ -7,7 +7,6 @@ import {
   FolderTree,
   GraduationCap,
   LayoutDashboard,
-  LogOut,
   Settings,
   Users,
 } from "lucide-react";
@@ -15,7 +14,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { logoutAdmin } from "@/lib/admin-actions";
+
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -113,18 +112,7 @@ function SidebarContent({
 
       <div className="mt-auto space-y-2 p-2">
         <Separator />
-        <form action={logoutAdmin}>
-          <button
-            type="submit"
-            className={cn(
-              "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              collapsed && "justify-center px-2",
-            )}
-          >
-            <LogOut className="h-5 w-5 shrink-0" aria-hidden="true" />
-            {!collapsed ? "Sign Out" : <span className="sr-only">Sign Out</span>}
-          </button>
-        </form>
+
         {setCollapsed ? (
           <Button
             variant="ghost"
