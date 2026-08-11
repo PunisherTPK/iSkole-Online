@@ -60,7 +60,7 @@ export default function HomePage() {
             <span className="service-icon">👨‍🏫</span>
             <h3>Mentor</h3>
             <p>
-              Find people who can help you understand what you're learning.
+              Find people who can help you understand what you&apos;re learning.
             </p>
           </Link>
 
