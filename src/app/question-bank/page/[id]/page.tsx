@@ -1,7 +1,9 @@
 import Link from "next/link";
-import { ArrowLeft, FileQuestion, Lock } from "lucide-react";
+import { ArrowLeft, FileQuestion, Lock, PlayCircle } from "lucide-react";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getQuestionBankAccess } from "@/lib/access/questionBankAccess";
+import QuestionPageInteractive, { type InteractiveQuestion } from "@/components/learning/QuestionPageInteractive";
 
 type QuestionPage = {
   id: string;
@@ -21,6 +23,29 @@ type Question = {
   question_image_url: string | null;
 };
 
+type Answer = {
+  question_id: string;
+  answer_image_url: string | null;
+  answer_text: string | null;
+  correct_option: "A" | "B" | "C" | "D" | null;
+};
+
+type Discussion = { youtube_url: string };
+
+function getYoutubeVideoId(url: string) {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname === "youtu.be") return parsed.pathname.slice(1);
+    if (parsed.hostname.endsWith("youtube.com")) {
+      if (parsed.pathname.startsWith("/embed/")) return parsed.pathname.split("/")[2] ?? null;
+      return parsed.searchParams.get("v");
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export default async function QuestionPageRoute({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
@@ -34,6 +59,8 @@ export default async function QuestionPageRoute({ params }: { params: Promise<{ 
 
   if (pageError || !page) notFound();
 
+  const access = await getQuestionBankAccess(page.subject_id);
+
   const { data: questions, error: questionsError } = await supabase
     .from("questions")
     .select("id, question_number, question_type, marks, order_index, question_image_url")
@@ -42,6 +69,40 @@ export default async function QuestionPageRoute({ params }: { params: Promise<{ 
     .returns<Question[]>();
 
   if (questionsError) throw new Error(questionsError.message);
+
+  let interactiveQuestions: InteractiveQuestion[] = [];
+  let discussion: Discussion | null = null;
+
+  if (access.hasAnswers) {
+    const questionIds = questions.map((question) => question.id);
+    const { data: answers, error: answersError } = questionIds.length
+      ? await supabase.from("question_answers").select("question_id, answer_image_url, answer_text, correct_option").in("question_id", questionIds).returns<Answer[]>()
+      : { data: [], error: null };
+
+    if (answersError) throw new Error(answersError.message);
+
+    const answerMap = new Map((answers ?? []).map((answer) => [answer.question_id, answer]));
+    interactiveQuestions = questions.map((question) => {
+      const answer = answerMap.get(question.id);
+      return {
+        ...question,
+        correct_option: answer?.correct_option ?? null,
+        answer_text: answer?.answer_text ?? null,
+        answer_image_url: answer?.answer_image_url ?? null,
+      };
+    });
+
+    const { data: discussionRow, error: discussionError } = await supabase
+      .from("question_page_discussions")
+      .select("youtube_url")
+      .eq("question_page_id", page.id)
+      .maybeSingle<Discussion>();
+
+    if (discussionError) throw new Error(discussionError.message);
+    discussion = discussionRow;
+  }
+
+  const videoId = discussion ? getYoutubeVideoId(discussion.youtube_url) : null;
 
   return (
     <main className="min-h-screen bg-background">
@@ -65,57 +126,50 @@ export default async function QuestionPageRoute({ params }: { params: Promise<{ 
           {page.description && <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">{page.description}</p>}
         </header>
 
+        {!access.hasAnswers && (
+          <div className="mb-8 rounded-2xl border border-border bg-card p-5">
+            <div className="flex items-start gap-3">
+              <Lock size={19} className="mt-0.5 shrink-0 text-muted-foreground" />
+              <div>
+                <p className="font-semibold text-foreground">Free Question Bank access</p>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">You can view the questions. Answers, practice and discussion videos require access to this subject or Premium.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {questions.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center">
             <FileQuestion size={30} className="mx-auto text-muted-foreground" />
             <h2 className="mt-4 font-semibold text-foreground">No questions yet</h2>
             <p className="mt-2 text-sm text-muted-foreground">This Question Page has not been populated yet.</p>
           </div>
+        ) : access.hasAnswers ? (
+          <QuestionPageInteractive questions={interactiveQuestions} pageType={page.page_type} />
         ) : (
           <section className="space-y-8">
             {questions.map((question) => (
-              <QuestionCard key={question.id} question={question} pageType={page.page_type} />
+              <article key={question.id} className="overflow-hidden rounded-2xl border border-border bg-card">
+                <div className="border-b border-border px-5 py-4 sm:px-6"><h2 className="font-bold text-foreground">Question {question.question_number}</h2></div>
+                <div className="p-5 sm:p-6">
+                  {question.question_image_url ? (
+                    <div className="overflow-hidden rounded-xl border border-border bg-muted/20"><img src={question.question_image_url} alt={`Question ${question.question_number}`} className="block h-auto w-full" /></div>
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-border bg-muted/20 p-8 text-center text-sm text-muted-foreground">No question image has been uploaded yet.</div>
+                  )}
+                </div>
+              </article>
             ))}
+          </section>
+        )}
+
+        {access.hasDiscussion && videoId && (
+          <section className="mt-10 overflow-hidden rounded-2xl border border-border bg-card">
+            <div className="border-b border-border p-6"><div className="flex items-center gap-2"><PlayCircle size={20} className="text-primary" /><h2 className="font-bold text-foreground">Discussion</h2></div></div>
+            <div className="aspect-video w-full bg-black"><iframe className="h-full w-full" src={`https://www.youtube.com/embed/${videoId}`} title="Question Page discussion" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen /></div>
           </section>
         )}
       </div>
     </main>
-  );
-}
-
-function QuestionCard({ question, pageType }: { question: Question; pageType: "mcq" | "structured" }) {
-  return (
-    <article className="overflow-hidden rounded-2xl border border-border bg-card">
-      <div className="border-b border-border px-5 py-4 sm:px-6">
-        <h2 className="font-bold text-foreground">Question {question.question_number}</h2>
-        <p className="mt-1 text-xs capitalize text-muted-foreground">
-          {question.question_type === "essay" ? "Essay" : pageType === "mcq" ? "Multiple Choice" : "Structured"}
-        </p>
-      </div>
-
-      <div className="p-5 sm:p-6">
-        {question.question_image_url ? (
-          <div className="overflow-hidden rounded-xl border border-border bg-muted/30">
-            <img src={question.question_image_url} alt={`Question ${question.question_number}`} className="block h-auto w-full" />
-          </div>
-        ) : (
-          <div className="rounded-xl border border-dashed border-border bg-muted/20 p-8 text-center text-sm text-muted-foreground">
-            No question image has been uploaded yet.
-          </div>
-        )}
-
-        <div className="mt-6 rounded-xl border border-dashed border-border bg-muted/20 p-5">
-          <div className="flex items-start gap-3">
-            <Lock size={18} className="mt-0.5 shrink-0 text-muted-foreground" />
-            <div>
-              <p className="text-sm font-semibold text-foreground">Answer features are locked</p>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                Answers, marking information, practice and discussion videos will be available according to the student&apos;s subscription.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </article>
   );
 }
