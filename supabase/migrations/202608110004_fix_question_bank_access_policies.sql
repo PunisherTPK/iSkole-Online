@@ -1,6 +1,15 @@
--- The actual schema stores YouTube discussions in question_page_discussions,
--- not discussion_videos. This migration is safe to run after the earlier
--- access migration failed.
+-- Question Bank subscription/access policies.
+-- Uses the actual V4 schema: question_page_discussions and question_answers.
+
+create or replace function public.question_bank_set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
 
 create table if not exists public.student_subscriptions (
   id uuid primary key default gen_random_uuid(),
