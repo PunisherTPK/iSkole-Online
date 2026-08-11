@@ -23,7 +23,9 @@ export async function getLevels(
 
   const { data, error } = await supabase
     .from("levels")
-    .select("id, curriculum_id, name, description")
+    .select(
+      "id, curriculum_id, name, description"
+    )
     .eq("curriculum_id", curriculumId)
     .eq("is_active", true)
     .order("name");
@@ -83,6 +85,27 @@ export async function getContentNodes(
   }
 
   return data ?? [];
+}
+
+export async function getContentNode(
+  nodeId: string
+) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("content_nodes")
+    .select(
+      "id, subject_id, parent_id, name, description"
+    )
+    .eq("id", nodeId)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
 }
 
 export async function getQuestionPages(

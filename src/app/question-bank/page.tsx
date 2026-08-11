@@ -1,5 +1,6 @@
 import QuestionBankShell from "@/components/question-bank/QuestionBankShell";
 import {
+  getContentNode,
   getContentNodes,
   getCurriculums,
   getLevels,
@@ -23,10 +24,17 @@ export default async function QuestionBankPage({
 
   const curriculums = await getCurriculums();
 
-  const selectedCurriculum = params.curriculum ?? null;
-  const selectedLevel = params.level ?? null;
-  const selectedSubject = params.subject ?? null;
-  const selectedNode = params.node ?? null;
+  const selectedCurriculum =
+    params.curriculum ?? null;
+
+  const selectedLevel =
+    params.level ?? null;
+
+  const selectedSubject =
+    params.subject ?? null;
+
+  const selectedNode =
+    params.node ?? null;
 
   const levels = selectedCurriculum
     ? await getLevels(selectedCurriculum)
@@ -35,6 +43,10 @@ export default async function QuestionBankPage({
   const subjects = selectedLevel
     ? await getSubjects(selectedLevel)
     : [];
+
+  const currentNode = selectedNode
+    ? await getContentNode(selectedNode)
+    : null;
 
   const nodes = selectedSubject
     ? await getContentNodes(
@@ -57,6 +69,7 @@ export default async function QuestionBankPage({
       subjects={subjects}
       nodes={nodes}
       questionPages={questionPages}
+      currentNode={currentNode}
       selectedCurriculum={selectedCurriculum}
       selectedLevel={selectedLevel}
       selectedSubject={selectedSubject}

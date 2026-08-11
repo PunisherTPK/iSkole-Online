@@ -52,10 +52,19 @@ type Props = {
   subjects: Subject[];
   nodes: ContentNode[];
   questionPages: QuestionPage[];
+  currentNode: CurrentNode | null;
   selectedCurriculum: string | null;
   selectedLevel: string | null;
   selectedSubject: string | null;
   selectedNode: string | null;
+};
+
+type CurrentNode = {
+  id: string;
+  subject_id: string;
+  parent_id: string | null;
+  name: string;
+  description: string | null;
 };
 
 export default function QuestionBankShell({
@@ -64,6 +73,7 @@ export default function QuestionBankShell({
   subjects,
   nodes,
   questionPages,
+  currentNode,
   selectedCurriculum,
   selectedLevel,
   selectedSubject,
@@ -201,7 +211,7 @@ export default function QuestionBankShell({
             </>
           )}
 
-          {node && (
+          {currentNode && (
             <>
               <ChevronRight
                 size={15}
@@ -209,11 +219,10 @@ export default function QuestionBankShell({
               />
 
               <span className="font-semibold text-foreground">
-                {node.name}
+                {currentNode.name}
               </span>
             </>
           )}
-
         </nav>
 
         {/* Curriculum */}
