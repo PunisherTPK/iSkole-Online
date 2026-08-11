@@ -29,29 +29,30 @@ create index if not exists student_subscriptions_subject_scope_idx
 
 alter table public.student_subscriptions enable row level security;
 
+drop policy if exists "Users can read their own subscriptions" on public.student_subscriptions;
 create policy "Users can read their own subscriptions"
 on public.student_subscriptions
 for select
 to authenticated
 using (auth.uid() = user_id);
 
--- Replace any broad discussion-video read policy from the earlier Question Bank migration.
+-- Discussion videos are subscription-only. The earlier migration's public
+-- policy is removed if it exists.
 drop policy if exists "Public can read active discussion videos" on public.discussion_videos;
+drop policy if exists "Students can read discussion videos with access" on public.discussion_videos;
 
 create policy "Students can read discussion videos with access"
 on public.discussion_videos
 for select
 to authenticated
 using (
-  deleted_at is null
-  and exists (
+  exists (
     select 1
     from public.question_pages qp
     join public.subjects s on s.id = qp.subject_id
     join public.levels l on l.id = s.level_id
     join public.curriculums c on c.id = l.curriculum_id
     where qp.id = discussion_videos.question_page_id
-      and qp.deleted_at is null
       and qp.is_published = true
       and exists (
         select 1
@@ -90,7 +91,6 @@ using (
     join public.levels l on l.id = s.level_id
     join public.curriculums c on c.id = l.curriculum_id
     where q.id = question_answers.question_id
-      and qp.deleted_at is null
       and qp.is_published = true
       and exists (
         select 1
@@ -111,7 +111,6 @@ using (
   )
 );
 
--- Keep the updated_at column maintained.
 drop trigger if exists student_subscriptions_set_updated_at on public.student_subscriptions;
 create trigger student_subscriptions_set_updated_at
 before update on public.student_subscriptions
