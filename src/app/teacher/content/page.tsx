@@ -37,17 +37,17 @@ export default async function TeacherContentPage({ searchParams }: { searchParam
     : ((assignments.data ?? []) as unknown as Assignment[]).map((row) => row.subjects).filter((subject): subject is Subject => subject !== null);
 
   const subject = subjects.find((item) => item.id === selectedSubjectId) ?? null;
-  const subjectIds = subject ? [subject.id] : [];
-  const { data: rawNodes } = subjectIds.length
-    ? await supabase.from("content_nodes").select("id, subject_id, parent_id, name, description, is_active, created_at").eq("subject_id", subject.id).eq("is_active", true).order("name")
+  const subjectId = subject?.id ?? null;
+  const { data: rawNodes } = subjectId
+    ? await supabase.from("content_nodes").select("id, subject_id, parent_id, name, description, is_active, created_at").eq("subject_id", subjectId).eq("is_active", true).order("name")
     : { data: [] as Node[] };
   const nodes = (rawNodes ?? []) as Node[];
   const node = nodes.find((item) => item.id === selectedNodeId) ?? null;
   const currentParentId = node?.id ?? null;
   const children = nodes.filter((item) => item.parent_id === currentParentId);
 
-  const { data: rawPages } = subject
-    ? await supabase.from("question_pages").select("id, title, page_type, is_published, content_node_id").eq("subject_id", subject.id).eq("content_node_id", currentParentId).order("title")
+  const { data: rawPages } = subjectId
+    ? await supabase.from("question_pages").select("id, title, page_type, is_published, content_node_id").eq("subject_id", subjectId).eq("content_node_id", currentParentId).order("title")
     : { data: [] as QuestionPage[] };
   const pages = (rawPages ?? []) as QuestionPage[];
 
