@@ -71,9 +71,12 @@ export async function createTeacherQuestion(formData: FormData) {
   const questionImageUrl = String(formData.get("questionImageUrl") || "").trim() || null;
   const questionImageFile = formData.get("questionImageFile");
   const questionType = String(formData.get("questionType") || "");
+  const paperCode = String(formData.get("paperCode") || "").trim();
+  const paperQuestionNumber = String(formData.get("paperQuestionNumber") || "").trim();
   const marks = Number(formData.get("marks") || 1);
 
   if (!pageId || !["mcq", "structured", "essay"].includes(questionType)) throw new Error("Invalid question data.");
+  if (!paperCode || !paperQuestionNumber) throw new Error("Paper code and paper question number are required.");
   if (!Number.isFinite(marks) || marks <= 0) throw new Error("Marks must be greater than zero.");
 
   const { data: page } = await supabase.from("question_pages").select("id, subject_id").eq("id", pageId).maybeSingle();
@@ -101,7 +104,16 @@ export async function createTeacherQuestion(formData: FormData) {
   const { data: last } = await supabase.from("questions").select("question_number, order_index").eq("question_page_id", pageId).order("order_index", { ascending: false }).limit(1).maybeSingle();
   const nextNumber = (last?.question_number ?? 0) + 1;
   const nextOrder = (last?.order_index ?? 0) + 1;
-  const { error } = await supabase.from("questions").insert({ question_page_id: pageId, question_number: nextNumber, question_type: questionType, marks, order_index: nextOrder, question_image_url: finalImageUrl });
+  const { error } = await supabase.from("questions").insert({
+    question_page_id: pageId,
+    question_number: nextNumber,
+    question_type: questionType,
+    marks,
+    order_index: nextOrder,
+    question_image_url: finalImageUrl,
+    paper_code: paperCode,
+    paper_question_number: paperQuestionNumber,
+  });
   if (error) throw new Error(error.message);
   revalidatePath(`/teacher/question-pages/${pageId}`);
   revalidatePath("/teacher/content");
