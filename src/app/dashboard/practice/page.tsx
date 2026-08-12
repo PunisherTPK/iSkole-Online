@@ -73,7 +73,11 @@ export default async function PracticeHistoryPage() {
             {(sessions ?? []).map((session) => {
               const percentage = Number(session.total_marks) > 0 ? Math.round((Number(session.earned_marks) / Number(session.total_marks)) * 100) : 0;
               return (
-                <article key={session.id} className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+                <Link
+                  key={session.id}
+                  href={`/dashboard/practice/${session.id}`}
+                  className="group block rounded-2xl border border-border bg-card p-5 transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md sm:p-6"
+                >
                   <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
@@ -93,12 +97,13 @@ export default async function PracticeHistoryPage() {
                         <p className="text-3xl font-bold text-foreground">{percentage}%</p>
                         <p className="text-xs font-semibold text-muted-foreground">Score</p>
                       </div>
-                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 transition group-hover:scale-105 dark:text-emerald-400">
                         <CheckCircle2 size={22} />
                       </div>
                     </div>
                   </div>
-                </article>
+                  <p className="mt-4 text-sm font-semibold text-primary">Open review →</p>
+                </Link>
               );
             })}
           </section>
