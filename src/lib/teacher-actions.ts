@@ -27,13 +27,7 @@ export async function createTeacherContent(formData: FormData) {
     if (!parent || parent.subject_id !== subjectId) throw new Error("Invalid parent folder.");
   }
 
-  const { error } = await supabase.from("content_nodes").insert({
-    subject_id: subjectId,
-    parent_id: parentId,
-    name,
-    created_by: user.id,
-    is_active: true,
-  });
+  const { error } = await supabase.from("content_nodes").insert({ subject_id: subjectId, parent_id: parentId, name, created_by: user.id, is_active: true });
   if (error) throw new Error(error.message);
   revalidatePath("/teacher/content");
 }
@@ -65,15 +59,7 @@ export async function createTeacherQuestionPage(formData: FormData) {
     if (!node || node.subject_id !== subjectId) throw new Error("Invalid folder.");
   }
 
-  const { data, error } = await supabase.from("question_pages").insert({
-    subject_id: subjectId,
-    content_node_id: contentNodeId,
-    title,
-    description,
-    page_type: pageType,
-    is_published: false,
-    created_by: user.id,
-  }).select("id").single();
+  const { data, error } = await supabase.from("question_pages").insert({ subject_id: subjectId, content_node_id: contentNodeId, title, description, page_type: pageType, is_published: false, created_by: user.id }).select("id").single();
   if (error) throw new Error(error.message);
   revalidatePath("/teacher/content");
   return data.id;
@@ -83,16 +69,39 @@ export async function createTeacherQuestion(formData: FormData) {
   const { supabase, user } = await getTeacher();
   const pageId = String(formData.get("pageId") || "");
   const questionImageUrl = String(formData.get("questionImageUrl") || "").trim() || null;
+  const questionImageFile = formData.get("questionImageFile");
   const questionType = String(formData.get("questionType") || "");
   const marks = Number(formData.get("marks") || 1);
+
   if (!pageId || !["mcq", "structured", "essay"].includes(questionType)) throw new Error("Invalid question data.");
   if (!Number.isFinite(marks) || marks <= 0) throw new Error("Marks must be greater than zero.");
+
   const { data: page } = await supabase.from("question_pages").select("id, subject_id").eq("id", pageId).maybeSingle();
   if (!page || !(await hasSubjectAccess(supabase, user.id, page.subject_id))) throw new Error("You cannot modify this question page.");
+
+  let finalImageUrl = questionImageUrl;
+  if (questionImageFile instanceof File && questionImageFile.size > 0) {
+    if (!questionImageFile.type.startsWith("image/")) throw new Error("Question image must be an image file.");
+    if (questionImageFile.size > 8 * 1024 * 1024) throw new Error("Question image must be 8 MB or smaller.");
+
+    const originalExtension = questionImageFile.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+    const extension = ["jpg", "jpeg", "png", "webp", "gif"].includes(originalExtension) ? originalExtension : "jpg";
+    const path = `${user.id}/${pageId}/${crypto.randomUUID()}.${extension}`;
+    const { error: uploadError } = await supabase.storage.from("question-images").upload(path, questionImageFile, {
+      contentType: questionImageFile.type,
+      cacheControl: "31536000",
+      upsert: false,
+    });
+    if (uploadError) throw new Error(uploadError.message);
+
+    const { data: publicUrl } = supabase.storage.from("question-images").getPublicUrl(path);
+    finalImageUrl = publicUrl.publicUrl;
+  }
+
   const { data: last } = await supabase.from("questions").select("question_number, order_index").eq("question_page_id", pageId).order("order_index", { ascending: false }).limit(1).maybeSingle();
   const nextNumber = (last?.question_number ?? 0) + 1;
   const nextOrder = (last?.order_index ?? 0) + 1;
-  const { error } = await supabase.from("questions").insert({ question_page_id: pageId, question_number: nextNumber, question_type: questionType, marks, order_index: nextOrder, question_image_url: questionImageUrl });
+  const { error } = await supabase.from("questions").insert({ question_page_id: pageId, question_number: nextNumber, question_type: questionType, marks, order_index: nextOrder, question_image_url: finalImageUrl });
   if (error) throw new Error(error.message);
   revalidatePath(`/teacher/question-pages/${pageId}`);
   revalidatePath("/teacher/content");
