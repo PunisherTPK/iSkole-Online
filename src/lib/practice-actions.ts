@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getQuestionBankAccess } from "@/lib/access/questionBankAccess";
 
 export type PracticeSubmission = {
   questionPageId: string;
@@ -24,6 +25,18 @@ export async function savePracticeResult(submission: PracticeSubmission) {
 
   if (!user) throw new Error("You must be logged in to save practice results.");
   if (!submission.questionPageId) throw new Error("Question Page is required.");
+
+  const { data: page, error: pageError } = await supabase
+    .from("question_pages")
+    .select("subject_id")
+    .eq("id", submission.questionPageId)
+    .eq("is_published", true)
+    .maybeSingle();
+
+  if (pageError || !page) throw new Error("Question Page not found.");
+
+  const access = await getQuestionBankAccess(page.subject_id);
+  if (!access.hasAnswers) throw new Error("Practice requires a subject subscription or Premium access.");
 
   const { data: session, error: sessionError } = await supabase
     .from("practice_sessions")
