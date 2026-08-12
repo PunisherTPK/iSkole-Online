@@ -72,8 +72,10 @@ export default async function SubscriptionsPage() {
           {subjects && subjects.length > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {subjects.map((subject) => {
-                const level = Array.isArray(subject.levels) ? subject.levels[0] : subject.levels;
-                const curriculum = level && Array.isArray(level.curriculums) ? level.curriculums[0] : level?.curriculums;
+                const levelRelation = subject.levels;
+                const level = Array.isArray(levelRelation) ? levelRelation[0] : levelRelation;
+                const curriculumRelation = level?.curriculums;
+                const curriculum = Array.isArray(curriculumRelation) ? curriculumRelation[0] : curriculumRelation;
                 const owned = subjectIds.has(subject.id);
                 return (
                   <article key={subject.id} className="rounded-2xl border border-border bg-card p-5 shadow-sm">
