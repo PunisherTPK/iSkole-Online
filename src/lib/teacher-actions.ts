@@ -19,9 +19,21 @@ export async function createTeacherContent(formData: FormData) {
   const subjectId = String(formData.get("subjectId") || "");
   const parentId = String(formData.get("parentId") || "") || null;
   const name = String(formData.get("name") || "").trim();
-  if (!subjectId || !name) throw new Error("Subject and name are required.");
+  if (!subjectId || !name) throw new Error("Subject and folder name are required.");
   if (!(await hasSubjectAccess(supabase, user.id, subjectId))) throw new Error("You are not assigned to this subject.");
-  const { error } = await supabase.from("content_nodes").insert({ subject_id: subjectId, parent_id: parentId, name, created_by: user.id, is_active: true });
+
+  if (parentId) {
+    const { data: parent } = await supabase.from("content_nodes").select("id, subject_id").eq("id", parentId).maybeSingle();
+    if (!parent || parent.subject_id !== subjectId) throw new Error("Invalid parent folder.");
+  }
+
+  const { error } = await supabase.from("content_nodes").insert({
+    subject_id: subjectId,
+    parent_id: parentId,
+    name,
+    created_by: user.id,
+    is_active: true,
+  });
   if (error) throw new Error(error.message);
   revalidatePath("/teacher/content");
 }
@@ -29,7 +41,7 @@ export async function createTeacherContent(formData: FormData) {
 export async function deleteTeacherContent(formData: FormData) {
   const { supabase, user } = await getTeacher();
   const id = String(formData.get("id") || "");
-  if (!id) throw new Error("Content node is required.");
+  if (!id) throw new Error("Content folder is required.");
   const { data: node } = await supabase.from("content_nodes").select("id, subject_id").eq("id", id).maybeSingle();
   if (!node || !(await hasSubjectAccess(supabase, user.id, node.subject_id))) throw new Error("You cannot modify this content.");
   const { error } = await supabase.from("content_nodes").delete().eq("id", id);
@@ -40,15 +52,28 @@ export async function deleteTeacherContent(formData: FormData) {
 export async function createTeacherQuestionPage(formData: FormData) {
   const { supabase, user } = await getTeacher();
   const subjectId = String(formData.get("subjectId") || "");
-  const contentNodeId = String(formData.get("contentNodeId") || "");
+  const rawContentNodeId = String(formData.get("contentNodeId") || "").trim();
+  const contentNodeId = rawContentNodeId || null;
   const title = String(formData.get("title") || "").trim();
   const description = String(formData.get("description") || "").trim() || null;
   const pageType = String(formData.get("pageType") || "");
-  if (!subjectId || !contentNodeId || !title || !["mcq", "structured"].includes(pageType)) throw new Error("Invalid question page data.");
+  if (!subjectId || !title || !["mcq", "structured"].includes(pageType)) throw new Error("Invalid question page data.");
   if (!(await hasSubjectAccess(supabase, user.id, subjectId))) throw new Error("You are not assigned to this subject.");
-  const { data: node } = await supabase.from("content_nodes").select("id, subject_id, parent_id").eq("id", contentNodeId).maybeSingle();
-  if (!node || node.subject_id !== subjectId) throw new Error("Invalid sub topic.");
-  const { data, error } = await supabase.from("question_pages").insert({ subject_id: subjectId, content_node_id: contentNodeId, title, description, page_type: pageType, is_published: false, created_by: user.id }).select("id").single();
+
+  if (contentNodeId) {
+    const { data: node } = await supabase.from("content_nodes").select("id, subject_id").eq("id", contentNodeId).maybeSingle();
+    if (!node || node.subject_id !== subjectId) throw new Error("Invalid folder.");
+  }
+
+  const { data, error } = await supabase.from("question_pages").insert({
+    subject_id: subjectId,
+    content_node_id: contentNodeId,
+    title,
+    description,
+    page_type: pageType,
+    is_published: false,
+    created_by: user.id,
+  }).select("id").single();
   if (error) throw new Error(error.message);
   revalidatePath("/teacher/content");
   return data.id;
@@ -74,8 +99,8 @@ export async function createTeacherQuestion(formData: FormData) {
 }
 
 async function hasSubjectAccess(supabase: SupabaseServerClient, userId: string, subjectId: string) {
+  const { data: profile } = await supabase.from("profiles").select("role, is_active").eq("id", userId).maybeSingle();
+  if (profile?.is_active && profile.role === "admin") return true;
   const { data } = await supabase.from("teacher_subjects").select("id").eq("teacher_id", userId).eq("subject_id", subjectId).eq("is_active", true).maybeSingle();
-  if (data) return true;
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", userId).maybeSingle();
-  return profile?.role === "admin";
+  return Boolean(data);
 }
