@@ -61,6 +61,17 @@ export async function createTeacherQuestionPage(formData: FormData) {
   return data.id;
 }
 
+export async function deleteTeacherQuestionPage(formData: FormData) {
+  const { supabase, user } = await getTeacher();
+  const pageId = String(formData.get("pageId") || "");
+  if (!pageId) throw new Error("Question page is required.");
+  const { data: page } = await supabase.from("question_pages").select("id, subject_id").eq("id", pageId).maybeSingle();
+  if (!page || !(await hasSubjectAccess(supabase, user.id, page.subject_id))) throw new Error("You cannot delete this question page.");
+  const { error } = await supabase.from("question_pages").delete().eq("id", pageId);
+  if (error) throw new Error(error.message);
+  revalidatePath("/teacher/content");
+}
+
 export async function createTeacherQuestion(formData: FormData) {
   const { supabase, user } = await getTeacher();
   const pageId = String(formData.get("pageId") || "");
@@ -91,18 +102,57 @@ export async function createTeacherQuestion(formData: FormData) {
     finalImageUrl = publicUrl.publicUrl;
   }
 
-  // RLS allows teachers/admins to read questions for subjects they can manage.
-  // Use the database-visible maximum; this avoids repeatedly colliding with 1.
-  const { data: lastNumber } = await supabase.from("questions").select("question_number").eq("question_page_id", pageId).order("question_number", { ascending: false }).limit(1).maybeSingle();
   const { data: lastOrder } = await supabase.from("questions").select("order_index").eq("question_page_id", pageId).order("order_index", { ascending: false }).limit(1).maybeSingle();
-  const nextNumber = (lastNumber?.question_number ?? 0) + 1;
   const nextOrder = (lastOrder?.order_index ?? 0) + 1;
 
-  const { data: inserted, error } = await supabase.from("questions").insert({ question_page_id: pageId, question_number: nextNumber, question_type: questionType, marks, order_index: nextOrder, question_image_url: finalImageUrl, paper_code: paperCode, paper_question_number: paperQuestionNumber }).select("id").single();
+  const { data: inserted, error } = await supabase.from("questions").insert({ question_page_id: pageId, question_type: questionType, marks, order_index: nextOrder, question_image_url: finalImageUrl, paper_code: paperCode, paper_question_number: paperQuestionNumber }).select("id").single();
   if (error) throw new Error(error.message);
   revalidatePath(`/teacher/question-pages/${pageId}`);
   revalidatePath("/teacher/content");
   return inserted.id;
+}
+
+export async function deleteTeacherQuestion(formData: FormData) {
+  const { supabase, user } = await getTeacher();
+  const questionId = String(formData.get("questionId") || "");
+  if (!questionId) throw new Error("Question is required.");
+  const { data: question } = await supabase.from("questions").select("id, question_page_id, question_pages(subject_id)").eq("id", questionId).maybeSingle();
+  const relation = question?.question_pages as { subject_id: string } | { subject_id: string }[] | null;
+  const subjectId = Array.isArray(relation) ? relation[0]?.subject_id : relation?.subject_id;
+  if (!question || !subjectId || !(await hasSubjectAccess(supabase, user.id, subjectId))) throw new Error("You cannot delete this question.");
+  const { error } = await supabase.from("questions").delete().eq("id", questionId);
+  if (error) throw new Error(error.message);
+  await normalizeQuestionOrder(supabase, question.question_page_id);
+  revalidatePath(`/teacher/question-pages/${question.question_page_id}`);
+}
+
+export async function reorderTeacherQuestion(formData: FormData) {
+  const { supabase, user } = await getTeacher();
+  const questionId = String(formData.get("questionId") || "");
+  const direction = String(formData.get("direction") || "");
+  if (!questionId || !["up", "down"].includes(direction)) throw new Error("Invalid reorder request.");
+
+  const { data: current } = await supabase.from("questions").select("id, question_page_id, order_index, question_pages(subject_id)").eq("id", questionId).maybeSingle();
+  const relation = current?.question_pages as { subject_id: string } | { subject_id: string }[] | null;
+  const subjectId = Array.isArray(relation) ? relation[0]?.subject_id : relation?.subject_id;
+  if (!current || !subjectId || !(await hasSubjectAccess(supabase, user.id, subjectId))) throw new Error("You cannot reorder this question.");
+
+  const { data: questions } = await supabase.from("questions").select("id, order_index").eq("question_page_id", current.question_page_id).order("order_index", { ascending: true });
+  const ordered = (questions ?? []) as { id: string; order_index: number }[];
+  const index = ordered.findIndex((item) => item.id === current.id);
+  const neighborIndex = direction === "up" ? index - 1 : index + 1;
+  if (index < 0 || neighborIndex < 0 || neighborIndex >= ordered.length) return;
+  const neighbor = ordered[neighborIndex];
+
+  const temporaryOrder = -1000000 - Math.floor(Math.random() * 100000);
+  const { error: firstError } = await supabase.from("questions").update({ order_index: temporaryOrder }).eq("id", current.id);
+  if (firstError) throw new Error(firstError.message);
+  const { error: secondError } = await supabase.from("questions").update({ order_index: current.order_index }).eq("id", neighbor.id);
+  if (secondError) throw new Error(secondError.message);
+  const { error: thirdError } = await supabase.from("questions").update({ order_index: neighbor.order_index }).eq("id", current.id);
+  if (thirdError) throw new Error(thirdError.message);
+
+  revalidatePath(`/teacher/question-pages/${current.question_page_id}`);
 }
 
 export async function saveTeacherAnswer(formData: FormData) {
@@ -135,6 +185,14 @@ export async function saveTeacherAnswer(formData: FormData) {
   const { error } = await supabase.from("question_answers").upsert({ question_id: questionId, answer_text: answerText, answer_image_url: answerImageUrl, correct_option: correctOption }, { onConflict: "question_id" });
   if (error) throw new Error(error.message);
   revalidatePath(`/teacher/question-pages/${question.question_page_id}`);
+}
+
+async function normalizeQuestionOrder(supabase: SupabaseServerClient, pageId: string) {
+  const { data: questions } = await supabase.from("questions").select("id").eq("question_page_id", pageId).order("order_index", { ascending: true });
+  for (let index = 0; index < (questions ?? []).length; index += 1) {
+    const { error } = await supabase.from("questions").update({ order_index: index + 1 }).eq("id", questions![index].id);
+    if (error) throw new Error(error.message);
+  }
 }
 
 async function hasSubjectAccess(supabase: SupabaseServerClient, userId: string, subjectId: string) {
