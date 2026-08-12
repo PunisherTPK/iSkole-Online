@@ -21,12 +21,10 @@ export async function createTeacherContent(formData: FormData) {
   const name = String(formData.get("name") || "").trim();
   if (!subjectId || !name) throw new Error("Subject and folder name are required.");
   if (!(await hasSubjectAccess(supabase, user.id, subjectId))) throw new Error("You are not assigned to this subject.");
-
   if (parentId) {
     const { data: parent } = await supabase.from("content_nodes").select("id, subject_id").eq("id", parentId).maybeSingle();
     if (!parent || parent.subject_id !== subjectId) throw new Error("Invalid parent folder.");
   }
-
   const { error } = await supabase.from("content_nodes").insert({ subject_id: subjectId, parent_id: parentId, name, created_by: user.id, is_active: true });
   if (error) throw new Error(error.message);
   revalidatePath("/teacher/content");
@@ -53,12 +51,10 @@ export async function createTeacherQuestionPage(formData: FormData) {
   const pageType = String(formData.get("pageType") || "");
   if (!subjectId || !title || !["mcq", "structured"].includes(pageType)) throw new Error("Invalid question page data.");
   if (!(await hasSubjectAccess(supabase, user.id, subjectId))) throw new Error("You are not assigned to this subject.");
-
   if (contentNodeId) {
     const { data: node } = await supabase.from("content_nodes").select("id, subject_id").eq("id", contentNodeId).maybeSingle();
     if (!node || node.subject_id !== subjectId) throw new Error("Invalid folder.");
   }
-
   const { data, error } = await supabase.from("question_pages").insert({ subject_id: subjectId, content_node_id: contentNodeId, title, description, page_type: pageType, is_published: false, created_by: user.id }).select("id").single();
   if (error) throw new Error(error.message);
   revalidatePath("/teacher/content");
@@ -86,66 +82,59 @@ export async function createTeacherQuestion(formData: FormData) {
   if (questionImageFile instanceof File && questionImageFile.size > 0) {
     if (!questionImageFile.type.startsWith("image/")) throw new Error("Question image must be an image file.");
     if (questionImageFile.size > 8 * 1024 * 1024) throw new Error("Question image must be 8 MB or smaller.");
-
     const originalExtension = questionImageFile.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
     const extension = ["jpg", "jpeg", "png", "webp", "gif"].includes(originalExtension) ? originalExtension : "jpg";
     const path = `${user.id}/${pageId}/${crypto.randomUUID()}.${extension}`;
-    const { error: uploadError } = await supabase.storage.from("question-images").upload(path, questionImageFile, {
-      contentType: questionImageFile.type,
-      cacheControl: "31536000",
-      upsert: false,
-    });
+    const { error: uploadError } = await supabase.storage.from("question-images").upload(path, questionImageFile, { contentType: questionImageFile.type, cacheControl: "31536000", upsert: false });
     if (uploadError) throw new Error(uploadError.message);
-
     const { data: publicUrl } = supabase.storage.from("question-images").getPublicUrl(path);
     finalImageUrl = publicUrl.publicUrl;
   }
 
-  // Question numbers are internal sequential labels for display. Find the
-  // current maximum directly, then retry on the unique constraint so rapid
-  // double-submits cannot break the page.
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    const { data: lastNumber } = await supabase
-      .from("questions")
-      .select("question_number")
-      .eq("question_page_id", pageId)
-      .order("question_number", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+  // RLS allows teachers/admins to read questions for subjects they can manage.
+  // Use the database-visible maximum; this avoids repeatedly colliding with 1.
+  const { data: lastNumber } = await supabase.from("questions").select("question_number").eq("question_page_id", pageId).order("question_number", { ascending: false }).limit(1).maybeSingle();
+  const { data: lastOrder } = await supabase.from("questions").select("order_index").eq("question_page_id", pageId).order("order_index", { ascending: false }).limit(1).maybeSingle();
+  const nextNumber = (lastNumber?.question_number ?? 0) + 1;
+  const nextOrder = (lastOrder?.order_index ?? 0) + 1;
 
-    const { data: lastOrder } = await supabase
-      .from("questions")
-      .select("order_index")
-      .eq("question_page_id", pageId)
-      .order("order_index", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+  const { data: inserted, error } = await supabase.from("questions").insert({ question_page_id: pageId, question_number: nextNumber, question_type: questionType, marks, order_index: nextOrder, question_image_url: finalImageUrl, paper_code: paperCode, paper_question_number: paperQuestionNumber }).select("id").single();
+  if (error) throw new Error(error.message);
+  revalidatePath(`/teacher/question-pages/${pageId}`);
+  revalidatePath("/teacher/content");
+  return inserted.id;
+}
 
-    const nextNumber = (lastNumber?.question_number ?? 0) + 1;
-    const nextOrder = (lastOrder?.order_index ?? 0) + 1;
-    const { error } = await supabase.from("questions").insert({
-      question_page_id: pageId,
-      question_number: nextNumber,
-      question_type: questionType,
-      marks,
-      order_index: nextOrder,
-      question_image_url: finalImageUrl,
-      paper_code: paperCode,
-      paper_question_number: paperQuestionNumber,
-    });
+export async function saveTeacherAnswer(formData: FormData) {
+  const { supabase, user } = await getTeacher();
+  const questionId = String(formData.get("questionId") || "");
+  const answerText = String(formData.get("answerText") || "").trim() || null;
+  const correctOptionRaw = String(formData.get("correctOption") || "").trim().toUpperCase();
+  const correctOption = correctOptionRaw || null;
+  const answerImageFile = formData.get("answerImageFile");
+  if (!questionId) throw new Error("Question is required.");
+  if (correctOption && !["A", "B", "C", "D"].includes(correctOption)) throw new Error("Correct option must be A, B, C, or D.");
 
-    if (!error) {
-      revalidatePath(`/teacher/question-pages/${pageId}`);
-      revalidatePath("/teacher/content");
-      return;
-    }
+  const { data: question } = await supabase.from("questions").select("id, question_page_id, question_pages(subject_id)").eq("id", questionId).maybeSingle();
+  const pageRelation = question?.question_pages as { subject_id: string } | { subject_id: string }[] | null;
+  const subjectId = Array.isArray(pageRelation) ? pageRelation[0]?.subject_id : pageRelation?.subject_id;
+  if (!question || !subjectId || !(await hasSubjectAccess(supabase, user.id, subjectId))) throw new Error("You cannot modify this answer.");
 
-    if (!error.message.includes("questions_question_page_id_question_number_key")) {
-      throw new Error(error.message);
-    }
+  let answerImageUrl: string | null = null;
+  if (answerImageFile instanceof File && answerImageFile.size > 0) {
+    if (!answerImageFile.type.startsWith("image/")) throw new Error("Answer image must be an image file.");
+    if (answerImageFile.size > 8 * 1024 * 1024) throw new Error("Answer image must be 8 MB or smaller.");
+    const extension = answerImageFile.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+    const safeExtension = ["jpg", "jpeg", "png", "webp", "gif"].includes(extension) ? extension : "jpg";
+    const path = `${user.id}/${question.question_page_id}/answers/${questionId}-${crypto.randomUUID()}.${safeExtension}`;
+    const { error: uploadError } = await supabase.storage.from("question-images").upload(path, answerImageFile, { contentType: answerImageFile.type, cacheControl: "31536000", upsert: false });
+    if (uploadError) throw new Error(uploadError.message);
+    answerImageUrl = supabase.storage.from("question-images").getPublicUrl(path).data.publicUrl;
   }
 
-  throw new Error("Could not assign a unique question number. Please try again.");
+  const { error } = await supabase.from("question_answers").upsert({ question_id: questionId, answer_text: answerText, answer_image_url: answerImageUrl, correct_option: correctOption }, { onConflict: "question_id" });
+  if (error) throw new Error(error.message);
+  revalidatePath(`/teacher/question-pages/${question.question_page_id}`);
 }
 
 async function hasSubjectAccess(supabase: SupabaseServerClient, userId: string, subjectId: string) {
