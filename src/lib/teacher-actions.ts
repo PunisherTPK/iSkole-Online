@@ -101,22 +101,51 @@ export async function createTeacherQuestion(formData: FormData) {
     finalImageUrl = publicUrl.publicUrl;
   }
 
-  const { data: last } = await supabase.from("questions").select("question_number, order_index").eq("question_page_id", pageId).order("order_index", { ascending: false }).limit(1).maybeSingle();
-  const nextNumber = (last?.question_number ?? 0) + 1;
-  const nextOrder = (last?.order_index ?? 0) + 1;
-  const { error } = await supabase.from("questions").insert({
-    question_page_id: pageId,
-    question_number: nextNumber,
-    question_type: questionType,
-    marks,
-    order_index: nextOrder,
-    question_image_url: finalImageUrl,
-    paper_code: paperCode,
-    paper_question_number: paperQuestionNumber,
-  });
-  if (error) throw new Error(error.message);
-  revalidatePath(`/teacher/question-pages/${pageId}`);
-  revalidatePath("/teacher/content");
+  // Question numbers are internal sequential labels for display. Find the
+  // current maximum directly, then retry on the unique constraint so rapid
+  // double-submits cannot break the page.
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const { data: lastNumber } = await supabase
+      .from("questions")
+      .select("question_number")
+      .eq("question_page_id", pageId)
+      .order("question_number", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const { data: lastOrder } = await supabase
+      .from("questions")
+      .select("order_index")
+      .eq("question_page_id", pageId)
+      .order("order_index", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const nextNumber = (lastNumber?.question_number ?? 0) + 1;
+    const nextOrder = (lastOrder?.order_index ?? 0) + 1;
+    const { error } = await supabase.from("questions").insert({
+      question_page_id: pageId,
+      question_number: nextNumber,
+      question_type: questionType,
+      marks,
+      order_index: nextOrder,
+      question_image_url: finalImageUrl,
+      paper_code: paperCode,
+      paper_question_number: paperQuestionNumber,
+    });
+
+    if (!error) {
+      revalidatePath(`/teacher/question-pages/${pageId}`);
+      revalidatePath("/teacher/content");
+      return;
+    }
+
+    if (!error.message.includes("questions_question_page_id_question_number_key")) {
+      throw new Error(error.message);
+    }
+  }
+
+  throw new Error("Could not assign a unique question number. Please try again.");
 }
 
 async function hasSubjectAccess(supabase: SupabaseServerClient, userId: string, subjectId: string) {
