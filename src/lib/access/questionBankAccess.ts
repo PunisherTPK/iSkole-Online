@@ -14,6 +14,11 @@ export async function getQuestionBankAccess(subjectId: string): Promise<Question
 
   if (!user) return { access: "free", hasAnswers: false, hasDiscussion: false };
 
+  const { data: profile } = await supabase.from("profiles").select("role, is_active").eq("id", user.id).maybeSingle();
+  if (profile?.is_active && profile.role === "admin") {
+    return { access: "premium", hasAnswers: true, hasDiscussion: true };
+  }
+
   const { data, error } = await supabase.rpc("get_question_bank_access", {
     p_user_id: user.id,
     p_subject_id: subjectId,
