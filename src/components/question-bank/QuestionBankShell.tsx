@@ -1,199 +1,21 @@
 import Link from "next/link";
-import {
-  ArrowLeft,
-  BookOpen,
-  ChevronRight,
-  FileQuestion,
-  Folder,
-} from "lucide-react";
+import { ArrowLeft, ArrowUp, BookOpen, ChevronRight, FileQuestion, Folder } from "lucide-react";
 
-type Curriculum = {
-  id: string;
-  name: string;
-  description: string | null;
-};
+type Curriculum={id:string;name:string;description:string|null}; type Level={id:string;curriculum_id:string;name:string;description:string|null}; type Subject={id:string;level_id:string;name:string;code:string|null;description:string|null}; type ContentNode={id:string;subject_id:string;parent_id:string|null;name:string;description:string|null}; type QuestionPage={id:string;subject_id:string;content_node_id:string|null;title:string;description:string|null;page_type:"mcq"|"structured";is_published:boolean};
+type Props={curriculums:Curriculum[];levels:Level[];subjects:Subject[];nodes:ContentNode[];questionPages:QuestionPage[];currentNode:ContentNode|null;selectedCurriculum:string|null;selectedLevel:string|null;selectedSubject:string|null;selectedNode:string|null};
 
-type Level = {
-  id: string;
-  curriculum_id: string;
-  name: string;
-  description: string | null;
-};
-
-type Subject = {
-  id: string;
-  level_id: string;
-  name: string;
-  code: string | null;
-  description: string | null;
-};
-
-type ContentNode = {
-  id: string;
-  subject_id: string;
-  parent_id: string | null;
-  name: string;
-  description: string | null;
-};
-
-type QuestionPage = {
-  id: string;
-  subject_id: string;
-  content_node_id: string | null;
-  title: string;
-  description: string | null;
-  page_type: "mcq" | "structured";
-  is_published: boolean;
-};
-
-type CurrentNode = ContentNode;
-
-type Props = {
-  curriculums: Curriculum[];
-  levels: Level[];
-  subjects: Subject[];
-  nodes: ContentNode[];
-  questionPages: QuestionPage[];
-  currentNode: CurrentNode | null;
-  selectedCurriculum: string | null;
-  selectedLevel: string | null;
-  selectedSubject: string | null;
-  selectedNode: string | null;
-};
-
-export default function QuestionBankShell({
-  curriculums,
-  levels,
-  subjects,
-  nodes,
-  questionPages,
-  currentNode,
-  selectedCurriculum,
-  selectedLevel,
-  selectedSubject,
-  selectedNode,
-}: Props) {
-  const curriculum = curriculums.find((item) => item.id === selectedCurriculum) ?? null;
-  const level = levels.find((item) => item.id === selectedLevel) ?? null;
-  const subject = subjects.find((item) => item.id === selectedSubject) ?? null;
-
-  const base = "/question-bank";
-  const curriculumUrl = `${base}?curriculum=${curriculum?.id ?? ""}`;
-  const levelUrl = curriculum && level
-    ? `${base}?curriculum=${curriculum.id}&level=${level.id}`
-    : base;
-  const subjectUrl = curriculum && level && subject
-    ? `${base}?curriculum=${curriculum.id}&level=${level.id}&subject=${subject.id}`
-    : base;
-
-  return (
-    <main className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card">
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <div className="flex items-center gap-2 text-sm font-semibold text-primary">
-                <BookOpen size={18} />
-                iSkole Question Bank
-              </div>
-              <h1 className="mt-2 text-3xl font-bold tracking-tight text-foreground">Question Bank</h1>
-              <p className="mt-2 text-sm text-muted-foreground">Browse questions by curriculum, level and subject.</p>
-            </div>
-            <Link href="/dashboard" className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-foreground transition hover:bg-muted">
-              <ArrowLeft size={17} />
-              Dashboard
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <nav className="mb-8 flex flex-wrap items-center gap-2 text-sm">
-          <Link href={base} className="font-semibold text-primary hover:underline">Question Bank</Link>
-          {curriculum && <><ChevronRight size={15} className="text-muted-foreground" /><Link href={curriculumUrl} className="font-semibold text-primary hover:underline">{curriculum.name}</Link></>}
-          {level && <><ChevronRight size={15} className="text-muted-foreground" /><Link href={levelUrl} className="font-semibold text-primary hover:underline">{level.name}</Link></>}
-          {subject && <><ChevronRight size={15} className="text-muted-foreground" /><Link href={subjectUrl} className="font-semibold text-primary hover:underline">{subject.name}</Link></>}
-          {currentNode && <><ChevronRight size={15} className="text-muted-foreground" /><span className="font-semibold text-foreground">{currentNode.name}</span></>}
-        </nav>
-
-        {!selectedCurriculum && (
-          <ExplorerSection title="Choose a curriculum" description="Select a curriculum to begin.">
-            {curriculums.map((item) => <ExplorerLink key={item.id} href={`${base}?curriculum=${item.id}`} icon={<BookOpen size={22} />} title={item.name} description={item.description ?? "Explore available content."} />)}
-          </ExplorerSection>
-        )}
-
-        {selectedCurriculum && !selectedLevel && (
-          <ExplorerSection title="Choose a level" description={`Select a level under ${curriculum?.name ?? "this curriculum"}.`}>
-            {levels.map((item) => <ExplorerLink key={item.id} href={`${base}?curriculum=${selectedCurriculum}&level=${item.id}`} icon={<BookOpen size={22} />} title={item.name} description={item.description ?? "Browse subjects available at this level."} />)}
-          </ExplorerSection>
-        )}
-
-        {selectedLevel && !selectedSubject && (
-          <ExplorerSection title="Choose a subject" description={`Select a subject under ${level?.name ?? "this level"}.`}>
-            {subjects.map((item) => <ExplorerLink key={item.id} href={`${base}?curriculum=${selectedCurriculum}&level=${selectedLevel}&subject=${item.id}`} icon={<BookOpen size={22} />} title={item.name} description={item.description ?? "Browse available Question Pages."} />)}
-          </ExplorerSection>
-        )}
-
-        {selectedSubject && (
-          <section>
-            <div className="mb-8">
-              <p className="text-sm font-semibold uppercase tracking-[0.15em] text-primary">{subject?.code ?? "Subject"}</p>
-              <h2 className="mt-2 text-3xl font-bold text-foreground">{subject?.name}</h2>
-              {subject?.description && <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">{subject.description}</p>}
-            </div>
-
-            {(nodes.length > 0 || questionPages.length > 0) && (
-              <div className={nodes.length > 0 && questionPages.length > 0 ? "grid gap-8 lg:grid-cols-[1fr_1fr]" : "grid gap-8"}>
-                {nodes.length > 0 && (
-                  <div>
-                    <div className="mb-4 flex items-center gap-2">
-                      <Folder size={19} className="text-primary" />
-                      <h3 className="font-bold text-foreground">{selectedNode ? "Subsections" : "Content"}</h3>
-                    </div>
-                    <div className="grid gap-3">
-                      {nodes.map((item) => (
-                        <ExplorerLink key={item.id} href={`${base}?curriculum=${selectedCurriculum}&level=${selectedLevel}&subject=${selectedSubject}&node=${item.id}`} icon={<Folder size={20} />} title={item.name} description={item.description ?? "Open this section."} />
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {questionPages.length > 0 && (
-                  <div>
-                    <div className="mb-4 flex items-center gap-2">
-                      <FileQuestion size={19} className="text-primary" />
-                      <h3 className="font-bold text-foreground">Question Pages</h3>
-                    </div>
-                    <div className="grid gap-3">
-                      {questionPages.map((page) => <QuestionPageCard key={page.id} page={page} />)}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {nodes.length === 0 && questionPages.length === 0 && (
-              <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center">
-                <FileQuestion size={30} className="mx-auto text-muted-foreground" />
-                <h3 className="mt-4 font-semibold text-foreground">Nothing here yet</h3>
-                <p className="mt-2 text-sm text-muted-foreground">No content or Question Pages have been added here yet.</p>
-              </div>
-            )}
-          </section>
-        )}
-      </div>
-    </main>
-  );
+export default function QuestionBankShell({curriculums,levels,subjects,nodes,questionPages,currentNode,selectedCurriculum,selectedLevel,selectedSubject,selectedNode}:Props){
+ const curriculum=curriculums.find(x=>x.id===selectedCurriculum)??null; const level=levels.find(x=>x.id===selectedLevel)??null; const subject=subjects.find(x=>x.id===selectedSubject)??null; const base="/question-bank";
+ const subjectUrl=curriculum&&level&&subject?`${base}?curriculum=${curriculum.id}&level=${level.id}&subject=${subject.id}`:base;
+ const parentUrl=currentNode?.parent_id?`${base}?curriculum=${selectedCurriculum}&level=${selectedLevel}&subject=${selectedSubject}&node=${currentNode.parent_id}`:subjectUrl;
+ return <main className="min-h-screen bg-background"><header className="border-b border-border bg-card"><div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8"><div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between"><div><div className="flex items-center gap-2 text-sm font-semibold text-primary"><BookOpen size={18}/>iSkole Question Bank</div><h1 className="mt-2 text-3xl font-bold tracking-tight">Question Bank</h1><p className="mt-2 text-sm text-muted-foreground">Browse questions by curriculum, level and subject.</p></div><Link href="/dashboard" className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold hover:bg-muted"><ArrowLeft size={17}/>Dashboard</Link></div></div></header>
+ <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8"><nav className="mb-5 flex flex-wrap items-center gap-2 text-sm"><Link href={base} className="font-semibold text-primary hover:underline">Question Bank</Link>{curriculum&&<><ChevronRight size={15}/><Link href={`${base}?curriculum=${curriculum.id}`} className="font-semibold text-primary hover:underline">{curriculum.name}</Link></>}{level&&<><ChevronRight size={15}/><Link href={`${base}?curriculum=${selectedCurriculum}&level=${level.id}`} className="font-semibold text-primary hover:underline">{level.name}</Link></>}{subject&&<><ChevronRight size={15}/><Link href={subjectUrl} className="font-semibold text-primary hover:underline">{subject.name}</Link></>}{currentNode&&<><ChevronRight size={15}/><span className="font-semibold">{currentNode.name}</span></>}</nav>
+ {currentNode&&<Link href={parentUrl} className="mb-7 inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-semibold transition hover:bg-muted"><ArrowUp size={16}/>{currentNode.parent_id?"Up one level":"Back to subject"}</Link>}
+ {!selectedCurriculum&&<ExplorerSection title="Choose a curriculum" description="Select a curriculum to begin.">{curriculums.map(x=><ExplorerLink key={x.id} href={`${base}?curriculum=${x.id}`} icon={<BookOpen size={22}/>} title={x.name} description={x.description??"Explore available content."}/>)}</ExplorerSection>}
+ {selectedCurriculum&&!selectedLevel&&<ExplorerSection title="Choose a level" description={`Select a level under ${curriculum?.name??"this curriculum"}.`}>{levels.map(x=><ExplorerLink key={x.id} href={`${base}?curriculum=${selectedCurriculum}&level=${x.id}`} icon={<BookOpen size={22}/>} title={x.name} description={x.description??"Browse subjects available at this level."}/>)}</ExplorerSection>}
+ {selectedLevel&&!selectedSubject&&<ExplorerSection title="Choose a subject" description={`Select a subject under ${level?.name??"this level"}.`}>{subjects.map(x=><ExplorerLink key={x.id} href={`${base}?curriculum=${selectedCurriculum}&level=${selectedLevel}&subject=${x.id}`} icon={<BookOpen size={22}/>} title={x.name} description={x.description??"Browse available Question Pages."}/>)}</ExplorerSection>}
+ {selectedSubject&&<section><div className="mb-8"><p className="text-sm font-semibold uppercase tracking-[0.15em] text-primary">{subject?.code??"Subject"}</p><h2 className="mt-2 text-3xl font-bold">{subject?.name}</h2>{subject?.description&&<p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">{subject.description}</p>}</div>{(nodes.length>0||questionPages.length>0)?<div className={nodes.length>0&&questionPages.length>0?"grid gap-8 lg:grid-cols-[1fr_1fr]":"grid gap-8"}>{nodes.length>0&&<div><div className="mb-4 flex items-center gap-2"><Folder size={19} className="text-primary"/><h3 className="font-bold">{selectedNode?"Subsections":"Content"}</h3></div><div className="grid gap-3">{nodes.map(x=><ExplorerLink key={x.id} href={`${base}?curriculum=${selectedCurriculum}&level=${selectedLevel}&subject=${selectedSubject}&node=${x.id}`} icon={<Folder size={20}/>} title={x.name} description={x.description??"Open this section."}/>)}</div></div>}{questionPages.length>0&&<div><div className="mb-4 flex items-center gap-2"><FileQuestion size={19} className="text-primary"/><h3 className="font-bold">Question Pages</h3></div><div className="grid gap-3">{questionPages.map(x=><QuestionPageCard key={x.id} page={x}/>)}</div></div>}</div>:<div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center"><FileQuestion size={30} className="mx-auto text-muted-foreground"/><h3 className="mt-4 font-semibold">Nothing here yet</h3><p className="mt-2 text-sm text-muted-foreground">No content or Question Pages have been added here yet.</p></div>}</section>}</div></main>;
 }
-
-function ExplorerSection({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
-  return <section><div className="mb-6"><h2 className="text-2xl font-bold text-foreground">{title}</h2><p className="mt-2 text-sm text-muted-foreground">{description}</p></div><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{children}</div></section>;
-}
-
-function ExplorerLink({ href, icon, title, description }: { href: string; icon: React.ReactNode; title: string; description: string }) {
-  return <Link href={href} className="group rounded-2xl border border-border bg-card p-5 transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary transition group-hover:bg-primary group-hover:text-primary-foreground">{icon}</div><h3 className="mt-5 font-semibold text-foreground group-hover:text-primary">{title}</h3><p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p><p className="mt-4 text-sm font-semibold text-primary">Explore →</p></Link>;
-}
-
-function QuestionPageCard({ page }: { page: QuestionPage }) {
-  return <Link href={`/question-bank/page/${page.id}`} className="group rounded-2xl border border-border bg-card p-5 transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"><div className="flex items-center justify-between gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><FileQuestion size={19} /></div><span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold capitalize text-muted-foreground">{page.page_type}</span></div><h3 className="mt-4 font-semibold text-foreground group-hover:text-primary">{page.title}</h3>{page.description && <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">{page.description}</p>}<p className="mt-4 text-sm font-semibold text-primary">Open Question Page →</p></Link>;
-}
+function ExplorerSection({title,description,children}:{title:string;description:string;children:React.ReactNode}){return <section><div className="mb-6"><h2 className="text-2xl font-bold">{title}</h2><p className="mt-2 text-sm text-muted-foreground">{description}</p></div><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{children}</div></section>}
+function ExplorerLink({href,icon,title,description}:{href:string;icon:React.ReactNode;title:string;description:string}){return <Link href={href} className="group rounded-2xl border border-border bg-card p-5 transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary transition group-hover:bg-primary group-hover:text-primary-foreground">{icon}</div><h3 className="mt-5 font-semibold group-hover:text-primary">{title}</h3><p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p><p className="mt-4 text-sm font-semibold text-primary">Explore →</p></Link>}
+function QuestionPageCard({page}:{page:QuestionPage}){return <Link href={`/question-bank/page/${page.id}`} className="group rounded-2xl border border-border bg-card p-5 transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"><div className="flex items-center justify-between gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><FileQuestion size={19}/></div><span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold capitalize text-muted-foreground">{page.page_type}</span></div><h3 className="mt-4 font-semibold group-hover:text-primary">{page.title}</h3>{page.description&&<p className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">{page.description}</p>}<p className="mt-4 text-sm font-semibold text-primary">Open Question Page →</p></Link>}
