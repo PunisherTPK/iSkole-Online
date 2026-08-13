@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { createTeacherQuestion, deleteTeacherQuestion, deleteTeacherQuestionPage, reorderTeacherQuestion, saveTeacherAnswer } from "@/lib/teacher-actions";
+import { createTeacherQuestion, deleteTeacherQuestion, deleteTeacherQuestionPage, publishTeacherQuestionPage, reorderTeacherQuestion, saveTeacherAnswer, unpublishTeacherQuestionPage } from "@/lib/teacher-actions";
 
 type Question = { id: string; question_type: string; marks: number; order_index: number; question_image_url: string | null; paper_code: string; paper_question_number: string };
 type Answer = { question_id: string; answer_text: string | null; answer_image_url: string | null; correct_option: string | null };
@@ -34,8 +34,14 @@ export default async function TeacherQuestionPage({ params }: { params: Promise<
   return <div className="app-page"><div className="app-page-content max-w-6xl">
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div><Link href="/teacher/content" className="text-sm font-semibold text-primary hover:underline">← Back to Content Manager</Link><p className="app-eyebrow mt-5">Question Page · {page.page_type.toUpperCase()}</p><h1>{page.title}</h1><p className="mt-2 text-sm text-muted-foreground">{subject?.name ?? "Subject"}{node ? ` · ${node.name}` : ""}</p></div>
-      <div className="flex items-center gap-2"><span className="rounded-full bg-muted px-3 py-1.5 text-xs font-semibold">{page.is_published ? "Published" : "Draft"}</span><form action={deleteTeacherQuestionPage}><input type="hidden" name="pageId" value={page.id}/><button className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-sm font-semibold text-destructive">Delete Page</button></form></div>
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <span className={`rounded-full px-3 py-1.5 text-xs font-semibold ${page.is_published ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-muted text-muted-foreground"}`}>{page.is_published ? "Published" : "Draft"}</span>
+        {page.is_published ? <form action={unpublishTeacherQuestionPage}><input type="hidden" name="pageId" value={page.id}/><button className="rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-semibold">Unpublish</button></form> : <form action={publishTeacherQuestionPage}><input type="hidden" name="pageId" value={page.id}/><button className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground">Publish Page</button></form>}
+        <form action={deleteTeacherQuestionPage}><input type="hidden" name="pageId" value={page.id}/><button className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-sm font-semibold text-destructive">Delete Page</button></form>
+      </div>
     </div>
+
+    {!page.is_published && <div className="mt-5 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 text-sm text-muted-foreground"><span className="font-semibold text-foreground">Draft:</span> Publishing checks that the page has questions, every question has a paper reference and image, and every MCQ has a correct answer.</div>}
 
     <section className="mt-8 rounded-2xl border border-border bg-card p-6 shadow-sm">
       <div><p className="app-eyebrow">New Question</p><h2 className="text-xl font-semibold">Add Question</h2><p className="mt-1 text-sm text-muted-foreground">Question numbers are automatic. Enter the original paper reference and choose the answer while creating an MCQ.</p></div>
