@@ -46,10 +46,23 @@ export default async function TeacherContentPage({ searchParams }: { searchParam
   const currentParentId = node?.id ?? null;
   const children = nodes.filter((item) => item.parent_id === currentParentId);
 
-  const { data: rawPages } = subjectId
-    ? await supabase.from("question_pages").select("id, title, page_type, is_published, content_node_id").eq("subject_id", subjectId).eq("content_node_id", currentParentId).order("title")
-    : { data: [] as QuestionPage[] };
-  const pages = (rawPages ?? []) as QuestionPage[];
+  let rawPages;
+
+  if (subjectId) {
+    const pagesQuery = supabase
+      .from("question_pages")
+      .select("id, title, page_type, is_published, content_node_id")
+      .eq("subject_id", subjectId)
+      .order("title");
+
+    rawPages = node
+      ? await pagesQuery.eq("content_node_id", node.id)
+      : await pagesQuery.is("content_node_id", null);
+  } else {
+    rawPages = { data: [] as QuestionPage[] };
+  }
+
+  const pages = (rawPages.data ?? []) as QuestionPage[];
 
   const breadcrumb: Node[] = [];
   if (node) {
