@@ -6,6 +6,39 @@ import {
   deleteTeacherContent,
 } from "@/lib/teacher-actions";
 
+type Subject = {
+  id: string;
+  name: string;
+  code: string | null;
+  levels?: {
+    name: string;
+    curriculums?: { name: string } | null;
+  } | null;
+};
+
+type ContentNode = {
+  id: string;
+  subject_id: string;
+  parent_id: string | null;
+  name: string;
+  description: string | null;
+  is_active: boolean;
+  created_at: string;
+};
+
+type QuestionPage = {
+  id: string;
+  subject_id: string;
+  content_node_id: string;
+  title: string;
+  page_type: string;
+  is_published: boolean;
+  created_at: string;
+};
+
+type AdminAssignment = Subject;
+type TeacherAssignment = { subject_id: string; subjects: Subject | null };
+
 export default async function TeacherContentPage() {
   const supabase = await createClient();
   const {
@@ -54,10 +87,16 @@ export default async function TeacherContentPage() {
           .eq("teacher_id", user.id)
           .eq("is_active", true);
 
-  const subjects = (assignments ?? [])
-    .map((row: any) => (profile.role === "admin" ? row : row.subjects))
-    .filter(Boolean);
-  const subjectIds = subjects.map((subject: any) => subject.id);
+  const subjects: Subject[] = (assignments ?? [])
+    .map((row) => {
+      if (profile.role === "admin") {
+        return row as AdminAssignment;
+      }
+      return (row as TeacherAssignment).subjects;
+    })
+    .filter((subject): subject is Subject => Boolean(subject));
+
+  const subjectIds = subjects.map((subject) => subject.id);
 
   const { data: nodes } = subjectIds.length
     ? await supabase
@@ -67,9 +106,11 @@ export default async function TeacherContentPage() {
         )
         .in("subject_id", subjectIds)
         .order("name")
-    : { data: [] };
+    : { data: [] as ContentNode[] };
 
-  const nodeIds = (nodes ?? []).map((node: any) => node.id);
+  const contentNodes = (nodes ?? []) as ContentNode[];
+  const nodeIds = contentNodes.map((node) => node.id);
+
   const { data: pages } = nodeIds.length
     ? await supabase
         .from("question_pages")
@@ -78,7 +119,9 @@ export default async function TeacherContentPage() {
         )
         .in("content_node_id", nodeIds)
         .order("created_at", { ascending: false })
-    : { data: [] };
+    : { data: [] as QuestionPage[] };
+
+  const questionPages = (pages ?? []) as QuestionPage[];
 
   return (
     <div className="app-page">
@@ -98,11 +141,11 @@ export default async function TeacherContentPage() {
         </div>
 
         <div className="mt-8 space-y-6">
-          {subjects.map((subject: any) => {
-            const subjectNodes = (nodes ?? []).filter(
-              (node: any) => node.subject_id === subject.id
+          {subjects.map((subject) => {
+            const subjectNodes = contentNodes.filter(
+              (node) => node.subject_id === subject.id
             );
-            const roots = subjectNodes.filter((node: any) => !node.parent_id);
+            const roots = subjectNodes.filter((node) => !node.parent_id);
 
             return (
               <section
@@ -145,9 +188,9 @@ export default async function TeacherContentPage() {
                 </div>
 
                 <div className="mt-6 space-y-3">
-                  {roots.map((unit: any) => {
+                  {roots.map((unit) => {
                     const topics = subjectNodes.filter(
-                      (node: any) => node.parent_id === unit.id
+                      (node) => node.parent_id === unit.id
                     );
 
                     return (
@@ -163,11 +206,7 @@ export default async function TeacherContentPage() {
                             <h3 className="font-semibold">{unit.name}</h3>
                           </div>
                           <form action={deleteTeacherContent}>
-                            <input
-                              type="hidden"
-                              name="id"
-                              value={unit.id}
-                            />
+                            <input type="hidden" name="id" value={unit.id} />
                             <button className="text-xs font-semibold text-destructive">
                               Delete
                             </button>
@@ -175,9 +214,9 @@ export default async function TeacherContentPage() {
                         </div>
 
                         <div className="mt-3 pl-4">
-                          {topics.map((topic: any) => {
+                          {topics.map((topic) => {
                             const subTopics = subjectNodes.filter(
-                              (node: any) => node.parent_id === topic.id
+                              (node) => node.parent_id === topic.id
                             );
 
                             return (
@@ -205,10 +244,9 @@ export default async function TeacherContentPage() {
                                 </div>
 
                                 <div className="mt-2 space-y-2 pl-4">
-                                  {subTopics.map((sub: any) => {
-                                    const subPages = (pages ?? []).filter(
-                                      (page: any) =>
-                                        page.content_node_id === sub.id
+                                  {subTopics.map((sub) => {
+                                    const subPages = questionPages.filter(
+                                      (page) => page.content_node_id === sub.id
                                     );
 
                                     return (
@@ -236,7 +274,7 @@ export default async function TeacherContentPage() {
                                         </div>
 
                                         <div className="mt-3 space-y-2 pl-2">
-                                          {subPages.map((page: any) => (
+                                          {subPages.map((page) => (
                                             <Link
                                               key={page.id}
                                               href={`/teacher/question-pages/${page.id}`}
