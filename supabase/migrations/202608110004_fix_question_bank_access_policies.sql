@@ -1,5 +1,6 @@
--- Question Bank subscription/access policies.
--- Uses the actual V4 schema: question_page_discussions and question_answers.
+-- The actual schema stores YouTube discussions in question_page_discussions,
+-- not discussion_videos. This migration is safe to run after the earlier
+-- access migration failed.
 
 create or replace function public.question_bank_set_updated_at()
 returns trigger

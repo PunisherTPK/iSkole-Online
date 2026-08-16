@@ -28,6 +28,8 @@ create index if not exists student_subscriptions_subject_scope_idx
   on public.student_subscriptions(user_id, curriculum_id, subject_id);
 
 alter table public.student_subscriptions enable row level security;
+alter table public.question_answers enable row level security;
+alter table public.discussion_videos enable row level security;
 
 drop policy if exists "Users can read their own subscriptions" on public.student_subscriptions;
 create policy "Users can read their own subscriptions"
