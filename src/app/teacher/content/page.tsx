@@ -16,6 +16,22 @@ type Subject = {
   } | null;
 };
 
+type RawSubject = {
+  id: string;
+  name: string;
+  code: string | null;
+  levels: Array<{
+    name: string;
+    curriculums: Array<{ name: string }>;
+  }>;
+};
+
+type AdminAssignment = RawSubject;
+type TeacherAssignment = {
+  subject_id: string;
+  subjects: RawSubject[];
+};
+
 type ContentNode = {
   id: string;
   subject_id: string;
@@ -36,8 +52,22 @@ type QuestionPage = {
   created_at: string;
 };
 
-type AdminAssignment = Subject;
-type TeacherAssignment = { subject_id: string; subjects: Subject | null };
+function normalizeSubject(subject: RawSubject): Subject {
+  const level = subject.levels?.[0];
+  const curriculum = level?.curriculums?.[0];
+
+  return {
+    id: subject.id,
+    name: subject.name,
+    code: subject.code,
+    levels: level
+      ? {
+          name: level.name,
+          curriculums: curriculum ? { name: curriculum.name } : null,
+        }
+      : null,
+  };
+}
 
 export default async function TeacherContentPage() {
   const supabase = await createClient();
@@ -88,13 +118,17 @@ export default async function TeacherContentPage() {
           .eq("is_active", true);
 
   const subjects: Subject[] = (assignments ?? [])
-    .map((row) => {
+    .flatMap((row) => {
       if (profile.role === "admin") {
-        return row as AdminAssignment;
+        return [normalizeSubject(row as unknown as AdminAssignment)];
       }
-      return (row as TeacherAssignment).subjects;
+
+      const assignment = row as unknown as TeacherAssignment;
+      return (assignment.subjects ?? []).map(normalizeSubject);
     })
-    .filter((subject): subject is Subject => Boolean(subject));
+    .filter((subject, index, all) =>
+      all.findIndex((candidate) => candidate.id === subject.id) === index
+    );
 
   const subjectIds = subjects.map((subject) => subject.id);
 
