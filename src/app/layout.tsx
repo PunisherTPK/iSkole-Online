@@ -1,47 +1,15 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import type { ReactNode } from "react";
-import { ConfirmForms } from "@/components/admin/ConfirmForms";
-import { Footer } from "@/components/layout/Footer";
-import { ThemeProvider } from "@/components/layout/ThemeProvider";
-import { Topbar } from "@/components/layout/Topbar";
+import Navbar from "@/components/layout/Navbar";
+import Footer from "@/components/layout/Footer";
+import BackButton from "@/components/layout/BackButton";
+import { createClient } from "@/lib/supabase/server";
 import "./globals.css";
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
-});
+export const metadata: Metadata = { title: "iSkole.online", description: "Learn. Practice. Connect." };
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://iskole.online";
-
-export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
-  title: {
-    default: "iSkole Online - Sri Lankan Past Papers and Question Bank",
-    template: "%s | iSkole Online",
-  },
-  description: "Search Sri Lankan educational resources by curriculum, level, subject, and past paper.",
-  openGraph: {
-    type: "website",
-    siteName: "iSkole Online",
-    title: "iSkole Online",
-    description: "Learn Every Lesson, One Question at a Time",
-    url: siteUrl,
-  },
-};
-
-export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
-  return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} min-h-screen font-sans antialiased`}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <Topbar />
-          <ConfirmForms />
-          <main>{children}</main>
-          <Footer />
-        </ThemeProvider>
-      </body>
-    </html>
-  );
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data: profile } = user ? await supabase.from("profiles").select("full_name, role").eq("id", user.id).maybeSingle() : { data: null };
+  return <html lang="en"><body><Navbar user={user ? { email: user.email ?? "", name: profile?.full_name ?? "", role: profile?.role ?? "student" } : null}/><BackButton/><main className="site-main">{children}</main><Footer/></body></html>;
 }

@@ -1,16 +1,35 @@
 "use client";
 
-import { Menu } from "lucide-react";
+import { Home, Menu, Search, Users } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { SearchBar } from "@/components/ui/custom/SearchBar";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { cn } from "@/lib/utils";
 
 export function Topbar() {
+  const pathname = usePathname();
+  const [visible, setVisible] = useState(false);
+  const isHome = pathname === "/";
+
+  useEffect(() => {
+    const updateVisibility = () => setVisible(!isHome || window.scrollY > 120);
+    updateVisibility();
+    window.addEventListener("scroll", updateVisibility, { passive: true });
+    return () => window.removeEventListener("scroll", updateVisibility);
+  }, [isHome]);
+
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-xl">
+    <header
+      className={cn(
+        "fixed top-0 z-40 w-full border-b border-border/70 bg-background/70 shadow-brand backdrop-blur-xl transition-all duration-300",
+        visible ? "translate-y-0 opacity-100" : "pointer-events-none -translate-y-4 opacity-0",
+      )}
+    >
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
         <Link href="/" className="flex shrink-0 items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg" aria-label="iSkole Online home">
           <Image src="/iskole-logo.png" alt="iSkole Online" width={40} height={40} className="h-10 w-auto" priority />
@@ -25,9 +44,18 @@ export function Topbar() {
         </div>
 
         <nav className="flex items-center gap-2">
+          <Button variant="ghost" asChild className="hidden sm:inline-flex">
+            <Link href="/"><Home className="mr-2 h-4 w-4" />Home</Link>
+          </Button>
+          <Button variant="ghost" asChild className="hidden sm:inline-flex">
+            <Link href="/teachers"><Users className="mr-2 h-4 w-4" />Mentors</Link>
+          </Button>
+          <Button variant="ghost" asChild className="hidden sm:inline-flex">
+            <Link href="/search"><Search className="mr-2 h-4 w-4" />Search</Link>
+          </Button>
           <ThemeToggle />
           <Button variant="ghost" asChild className="hidden sm:inline-flex">
-            <Link href="/admin">Admin</Link>
+            <Link href="/admin">Login</Link>
           </Button>
 
           <Sheet>
@@ -42,11 +70,17 @@ export function Topbar() {
               </SheetHeader>
               <div className="mt-6 grid gap-6">
                 <SearchBar compact />
-                <Link className="text-base font-semibold text-foreground hover:text-primary" href="/admin">
-                  Admin Dashboard
+                <Link className="flex items-center gap-2 text-base font-semibold text-foreground hover:text-primary" href="/">
+                  <Home className="h-5 w-5" />Home
                 </Link>
-                <Link className="text-base font-semibold text-foreground hover:text-primary" href="/search">
-                  Search
+                <Link className="flex items-center gap-2 text-base font-semibold text-foreground hover:text-primary" href="/teachers">
+                  <Users className="h-5 w-5" />Mentors
+                </Link>
+                <Link className="flex items-center gap-2 text-base font-semibold text-foreground hover:text-primary" href="/search">
+                  <Search className="h-5 w-5" />Search
+                </Link>
+                <Link className="text-base font-semibold text-foreground hover:text-primary" href="/admin">
+                  Login
                 </Link>
               </div>
             </SheetContent>

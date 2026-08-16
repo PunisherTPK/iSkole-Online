@@ -1,5 +1,25 @@
 create extension if not exists "pgcrypto";
 
+create table if not exists public.roles (
+  id text primary key check (id in ('student', 'teacher', 'admin')),
+  name text not null
+);
+
+insert into public.roles (id, name) values
+  ('student', 'Student'),
+  ('teacher', 'Teacher'),
+  ('admin', 'Admin')
+on conflict (id) do update set name = excluded.name;
+
+create table if not exists public.profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  email text not null,
+  full_name text not null default '',
+  role text not null default 'student' references public.roles(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.curriculums (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -25,60 +45,136 @@ create table if not exists public.subjects (
   level_id uuid not null references public.levels(id) on delete cascade,
   name text not null,
   slug text not null,
+  code text,
   display_order integer not null default 0,
   created_at timestamptz not null default now(),
   deleted_at timestamptz,
   unique (level_id, slug)
 );
 
-create table if not exists public.resource_types (
-  id uuid primary key default gen_random_uuid(),
-  name text not null unique
-);
-
-create table if not exists public.resources (
-  id uuid primary key default gen_random_uuid(),
-  subject_id uuid not null references public.subjects(id) on delete cascade,
-  resource_type_id uuid not null references public.resource_types(id),
-  title text not null,
-  description text not null default '',
-  content text not null default '',
-  file_url text,
-  youtube_url text,
-  display_order integer not null default 0,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  deleted_at timestamptz
-);
-
-create table if not exists public.past_papers (
-  id uuid primary key default gen_random_uuid(),
-  subject_id uuid not null references public.subjects(id) on delete cascade,
-  year integer not null check (year between 1900 and 2100),
-  session text not null,
-  paper_file_url text,
-  mark_scheme_file_url text,
-  display_order integer not null default 0,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  deleted_at timestamptz
-);
-
 create table if not exists public.teachers (
   id uuid primary key default gen_random_uuid(),
+  profile_id uuid references public.profiles(id) on delete set null,
   name text not null,
+  slug text not null unique,
   email text not null unique,
-  role text not null default 'teacher' check (role in ('super_admin', 'teacher')),
+  photo_url text,
+  cover_url text,
+  subjects text[] not null default '{}',
+  curriculums text[] not null default '{}',
+  qualifications text not null default '',
+  experience_years integer not null default 0,
+  short_bio text not null default '',
+  biography text not null default '',
+  social_links jsonb not null default '{}',
   created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
   deleted_at timestamptz
 );
 
-create table if not exists public.teacher_assignments (
+create table if not exists public.teacher_subjects (
   id uuid primary key default gen_random_uuid(),
   teacher_id uuid not null references public.teachers(id) on delete cascade,
   subject_id uuid not null references public.subjects(id) on delete cascade,
   created_at timestamptz not null default now(),
   unique (teacher_id, subject_id)
+);
+
+create table if not exists public.units (
+  id uuid primary key default gen_random_uuid(),
+  subject_id uuid not null references public.subjects(id) on delete cascade,
+  name text not null,
+  slug text not null,
+  description text not null default '',
+  display_order integer not null default 0,
+  created_at timestamptz not null default now(),
+  deleted_at timestamptz,
+  unique (subject_id, slug)
+);
+
+create table if not exists public.topics (
+  id uuid primary key default gen_random_uuid(),
+  unit_id uuid not null references public.units(id) on delete cascade,
+  name text not null,
+  slug text not null,
+  description text not null default '',
+  display_order integer not null default 0,
+  created_at timestamptz not null default now(),
+  deleted_at timestamptz,
+  unique (unit_id, slug)
+);
+
+create table if not exists public.sub_topics (
+  id uuid primary key default gen_random_uuid(),
+  topic_id uuid not null references public.topics(id) on delete cascade,
+  name text not null,
+  slug text not null,
+  description text not null default '',
+  display_order integer not null default 0,
+  created_at timestamptz not null default now(),
+  deleted_at timestamptz,
+  unique (topic_id, slug)
+);
+
+create table if not exists public.question_types (
+  id uuid primary key default gen_random_uuid(),
+  sub_topic_id uuid not null references public.sub_topics(id) on delete cascade,
+  teacher_id uuid references public.teachers(id) on delete set null,
+  type text not null check (type in ('mcq', 'structured')),
+  title text not null,
+  description text not null default '',
+  display_order integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz,
+  unique (sub_topic_id, type)
+);
+
+create table if not exists public.questions (
+  id uuid primary key default gen_random_uuid(),
+  question_type_id uuid not null references public.question_types(id) on delete cascade,
+  question_image_url text not null,
+  correct_answer text check (correct_answer in ('A', 'B', 'C', 'D')),
+  marking_scheme text not null default '',
+  explanation text not null default '',
+  difficulty text not null default 'medium' check (difficulty in ('easy', 'medium', 'hard')),
+  display_order integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+create table if not exists public.discussion_videos (
+  id uuid primary key default gen_random_uuid(),
+  question_type_id uuid not null references public.question_types(id) on delete cascade,
+  teacher_id uuid references public.teachers(id) on delete set null,
+  title text not null,
+  youtube_url text not null,
+  youtube_video_id text not null,
+  description text not null default '',
+  resources text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz,
+  unique (question_type_id)
+);
+
+create table if not exists public.student_attempts (
+  id uuid primary key default gen_random_uuid(),
+  profile_id uuid not null references public.profiles(id) on delete cascade,
+  question_type_id uuid not null references public.question_types(id) on delete cascade,
+  total_questions integer not null default 0,
+  correct_answers integer not null default 0,
+  score_percentage numeric(5,2) not null default 0,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.student_answers (
+  id uuid primary key default gen_random_uuid(),
+  attempt_id uuid not null references public.student_attempts(id) on delete cascade,
+  question_id uuid not null references public.questions(id) on delete cascade,
+  selected_answer text check (selected_answer in ('A', 'B', 'C', 'D')),
+  is_correct boolean not null default false
 );
 
 create or replace function public.set_updated_at()
@@ -89,34 +185,57 @@ begin
 end;
 $$ language plpgsql;
 
-drop trigger if exists resources_set_updated_at on public.resources;
-create trigger resources_set_updated_at before update on public.resources
-for each row execute function public.set_updated_at();
+drop trigger if exists profiles_set_updated_at on public.profiles;
+create trigger profiles_set_updated_at before update on public.profiles for each row execute function public.set_updated_at();
+drop trigger if exists teachers_set_updated_at on public.teachers;
+create trigger teachers_set_updated_at before update on public.teachers for each row execute function public.set_updated_at();
+drop trigger if exists question_types_set_updated_at on public.question_types;
+create trigger question_types_set_updated_at before update on public.question_types for each row execute function public.set_updated_at();
+drop trigger if exists questions_set_updated_at on public.questions;
+create trigger questions_set_updated_at before update on public.questions for each row execute function public.set_updated_at();
+drop trigger if exists discussion_videos_set_updated_at on public.discussion_videos;
+create trigger discussion_videos_set_updated_at before update on public.discussion_videos for each row execute function public.set_updated_at();
 
-drop trigger if exists past_papers_set_updated_at on public.past_papers;
-create trigger past_papers_set_updated_at before update on public.past_papers
-for each row execute function public.set_updated_at();
-
+alter table public.roles enable row level security;
+alter table public.profiles enable row level security;
 alter table public.curriculums enable row level security;
 alter table public.levels enable row level security;
 alter table public.subjects enable row level security;
-alter table public.resource_types enable row level security;
-alter table public.resources enable row level security;
-alter table public.past_papers enable row level security;
 alter table public.teachers enable row level security;
-alter table public.teacher_assignments enable row level security;
+alter table public.teacher_subjects enable row level security;
+alter table public.units enable row level security;
+alter table public.topics enable row level security;
+alter table public.sub_topics enable row level security;
+alter table public.question_types enable row level security;
+alter table public.questions enable row level security;
+alter table public.discussion_videos enable row level security;
+alter table public.student_attempts enable row level security;
+alter table public.student_answers enable row level security;
 
 create policy "Public can read active curriculums" on public.curriculums for select using (deleted_at is null);
 create policy "Public can read active levels" on public.levels for select using (deleted_at is null);
 create policy "Public can read active subjects" on public.subjects for select using (deleted_at is null);
-create policy "Public can read resource types" on public.resource_types for select using (true);
-create policy "Public can read active resources" on public.resources for select using (deleted_at is null);
-create policy "Public can read active past papers" on public.past_papers for select using (deleted_at is null);
+create policy "Public can read active teachers" on public.teachers for select using (deleted_at is null);
+create policy "Public can read teacher subjects" on public.teacher_subjects for select using (true);
+create policy "Public can read active units" on public.units for select using (deleted_at is null);
+create policy "Public can read active topics" on public.topics for select using (deleted_at is null);
+create policy "Public can read active sub topics" on public.sub_topics for select using (deleted_at is null);
+create policy "Public can read active question types" on public.question_types for select using (deleted_at is null);
+create policy "Public can read active questions" on public.questions for select using (deleted_at is null);
+create policy "Public can read active discussion videos" on public.discussion_videos for select using (deleted_at is null);
+create policy "Users can read own profile" on public.profiles for select using (auth.uid() = id);
+create policy "Users can read own attempts" on public.student_attempts for select using (auth.uid() = profile_id);
+create policy "Users can read own answers" on public.student_answers for select using (
+  exists (select 1 from public.student_attempts where student_attempts.id = student_answers.attempt_id and student_attempts.profile_id = auth.uid())
+);
 
 create index if not exists levels_curriculum_id_idx on public.levels(curriculum_id);
 create index if not exists subjects_level_id_idx on public.subjects(level_id);
-create index if not exists resources_subject_id_idx on public.resources(subject_id);
-create index if not exists resources_resource_type_id_idx on public.resources(resource_type_id);
-create index if not exists past_papers_subject_id_idx on public.past_papers(subject_id);
-create index if not exists teacher_assignments_teacher_id_idx on public.teacher_assignments(teacher_id);
-create index if not exists teacher_assignments_subject_id_idx on public.teacher_assignments(subject_id);
+create index if not exists teacher_subjects_teacher_id_idx on public.teacher_subjects(teacher_id);
+create index if not exists teacher_subjects_subject_id_idx on public.teacher_subjects(subject_id);
+create index if not exists units_subject_id_idx on public.units(subject_id);
+create index if not exists topics_unit_id_idx on public.topics(unit_id);
+create index if not exists sub_topics_topic_id_idx on public.sub_topics(topic_id);
+create index if not exists question_types_sub_topic_id_idx on public.question_types(sub_topic_id);
+create index if not exists questions_question_type_id_idx on public.questions(question_type_id);
+create index if not exists discussion_videos_question_type_id_idx on public.discussion_videos(question_type_id);
