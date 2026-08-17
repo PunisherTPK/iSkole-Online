@@ -1,0 +1,225 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 250 250 252;
+  --foreground: 27 28 40;
+
+  --card: 255 255 255;
+  --card-foreground: 27 28 40;
+
+  --muted: 246 246 249;
+  --muted-foreground: 103 104 120;
+
+  --border: 231 231 238;
+
+  --primary: 101 52 196;
+  --primary-dark: 82 38 166;
+  --primary-light: 244 239 255;
+  --primary-foreground: 255 255 255;
+
+  --secondary: 239 234 252;
+  --secondary-foreground: 78 40 150;
+
+  --success: 24 155 103;
+  --warning: 221 151 33;
+  --danger: 218 67 67;
+
+  --radius: 0.9rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: rgb(var(--background));
+  color: rgb(var(--foreground));
+  font-family: "DM Sans", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: "Manrope", system-ui, sans-serif;
+  letter-spacing: -0.025em;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+::selection {
+  background: rgb(var(--primary) / 0.16);
+  color: rgb(var(--primary-dark));
+}
+
+:focus-visible {
+  outline: 3px solid rgb(var(--primary) / 0.25);
+  outline-offset: 2px;
+}
+
+/* -------------------------------------------------------
+   Shared design utilities
+------------------------------------------------------- */
+
+@layer components {
+  .container-site {
+    width: min(100% - 2rem, 1200px);
+    margin-inline: auto;
+  }
+
+  .section-padding {
+    padding-block: 5rem;
+  }
+
+  .text-gradient {
+    background: linear-gradient(
+      135deg,
+      rgb(var(--primary)),
+      rgb(133 76 220)
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .surface {
+    border: 1px solid rgb(var(--border));
+    background: rgb(var(--card));
+    box-shadow:
+      0 1px 2px rgb(20 20 40 / 0.03),
+      0 10px 30px rgb(20 20 40 / 0.04);
+  }
+
+  .button-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 44px;
+    padding: 0.7rem 1.15rem;
+    border-radius: 0.7rem;
+    background: rgb(var(--primary));
+    color: rgb(var(--primary-foreground));
+    font-size: 0.875rem;
+    font-weight: 700;
+    transition:
+      background-color 160ms ease,
+      transform 160ms ease,
+      box-shadow 160ms ease;
+  }
+
+  .button-primary:hover {
+    background: rgb(var(--primary-dark));
+    box-shadow: 0 8px 20px rgb(var(--primary) / 0.2);
+    transform: translateY(-1px);
+  }
+
+  .button-primary:active {
+    transform: translateY(0);
+  }
+
+  .button-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 44px;
+    padding: 0.7rem 1.15rem;
+    border: 1px solid rgb(var(--primary) / 0.3);
+    border-radius: 0.7rem;
+    background: rgb(var(--card));
+    color: rgb(var(--primary));
+    font-size: 0.875rem;
+    font-weight: 700;
+    transition:
+      background-color 160ms ease,
+      border-color 160ms ease,
+      transform 160ms ease;
+  }
+
+  .button-secondary:hover {
+    border-color: rgb(var(--primary) / 0.5);
+    background: rgb(var(--primary-light));
+    transform: translateY(-1px);
+  }
+}
+
+/* -------------------------------------------------------
+   Scrollbar
+------------------------------------------------------- */
+
+::-webkit-scrollbar {
+  width: 9px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgb(var(--border));
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(198 198 209);
+  background-clip: padding-box;
+}
+
+/* -------------------------------------------------------
+   Responsive adjustments
+------------------------------------------------------- */
+
+@media (max-width: 640px) {
+  .section-padding {
+    padding-block: 3.5rem;
+  }
+
+  .container-site {
+    width: min(100% - 1.5rem, 1200px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
