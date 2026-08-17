@@ -1,5 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 
+type ContentNode = {
+  id: string;
+  subject_id: string;
+  parent_id: string | null;
+  name: string;
+  description: string | null;
+};
+
 export async function getCurriculums() {
   const supabase = await createClient();
   const { data, error } = await supabase.from("curriculums").select("id, name, description").eq("is_active", true).order("name", { ascending: true });
@@ -38,19 +46,21 @@ export async function getContentNode(nodeId: string) {
 }
 
 export async function getContentNodePath(nodeId: string) {
-  const supabase = await createClient();
-  const path: { id: string; subject_id: string; parent_id: string | null; name: string; description: string | null }[] = [];
+  const path: ContentNode[] = [];
   let currentId: string | null = nodeId;
   const seen = new Set<string>();
 
   while (currentId && !seen.has(currentId)) {
     seen.add(currentId);
-    const { data, error } = await supabase.from("content_nodes").select("id, subject_id, parent_id, name, description").eq("id", currentId).eq("is_active", true).maybeSingle();
-    if (error) throw new Error(error.message);
+
+    const data = await getContentNode(currentId);
+
     if (!data) break;
+
     path.unshift(data);
     currentId = data.parent_id;
   }
+
   return path;
 }
 
