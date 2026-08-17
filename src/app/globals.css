@@ -1,34 +1,40 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap");
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --background: 250 250 252;
-  --foreground: 27 28 40;
+  --background: 250 20% 99%;
+  --foreground: 23 24% 15%;
 
-  --card: 255 255 255;
-  --card-foreground: 27 28 40;
+  --card: 0 0% 100%;
+  --card-foreground: 23 24% 15%;
 
-  --muted: 246 246 249;
-  --muted-foreground: 103 104 120;
+  --popover: 0 0% 100%;
+  --popover-foreground: 23 24% 15%;
 
-  --border: 231 231 238;
+  --primary: 262 83% 58%;
+  --primary-foreground: 0 0% 100%;
 
-  --primary: 101 52 196;
-  --primary-dark: 82 38 166;
-  --primary-light: 244 239 255;
-  --primary-foreground: 255 255 255;
+  --secondary: 260 60% 96%;
+  --secondary-foreground: 262 50% 35%;
 
-  --secondary: 239 234 252;
-  --secondary-foreground: 78 40 150;
+  --muted: 250 15% 97%;
+  --muted-foreground: 240 5% 40%;
 
-  --success: 24 155 103;
-  --warning: 221 151 33;
-  --danger: 218 67 67;
+  --accent: 260 60% 96%;
+  --accent-foreground: 262 50% 35%;
+
+  --destructive: 0 70% 55%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 240 10% 90%;
+  --input: 240 10% 90%;
+  --ring: 262 83% 58%;
 
   --radius: 0.9rem;
+
+  --font-inter: "Inter", system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
 }
 
 * {
@@ -41,21 +47,11 @@ html {
 
 body {
   margin: 0;
-  background: rgb(var(--background));
-  color: rgb(var(--foreground));
-  font-family: "DM Sans", system-ui, sans-serif;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-inter);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-}
-
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  font-family: "Manrope", system-ui, sans-serif;
-  letter-spacing: -0.025em;
 }
 
 button,
@@ -76,18 +72,14 @@ a {
 }
 
 ::selection {
-  background: rgb(var(--primary) / 0.16);
-  color: rgb(var(--primary-dark));
+  background: hsl(var(--primary) / 0.16);
+  color: hsl(var(--primary));
 }
 
 :focus-visible {
-  outline: 3px solid rgb(var(--primary) / 0.25);
+  outline: 3px solid hsl(var(--ring) / 0.25);
   outline-offset: 2px;
 }
-
-/* -------------------------------------------------------
-   Shared design utilities
-------------------------------------------------------- */
 
 @layer components {
   .container-site {
@@ -102,8 +94,8 @@ a {
   .text-gradient {
     background: linear-gradient(
       135deg,
-      rgb(var(--primary)),
-      rgb(133 76 220)
+      hsl(var(--primary)),
+      hsl(271 76% 60%)
     );
     -webkit-background-clip: text;
     background-clip: text;
@@ -111,11 +103,11 @@ a {
   }
 
   .surface {
-    border: 1px solid rgb(var(--border));
-    background: rgb(var(--card));
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--card));
     box-shadow:
-      0 1px 2px rgb(20 20 40 / 0.03),
-      0 10px 30px rgb(20 20 40 / 0.04);
+      0 1px 2px rgb(15 23 42 / 0.03),
+      0 12px 32px rgb(15 23 42 / 0.04);
   }
 
   .button-primary {
@@ -126,8 +118,8 @@ a {
     min-height: 44px;
     padding: 0.7rem 1.15rem;
     border-radius: 0.7rem;
-    background: rgb(var(--primary));
-    color: rgb(var(--primary-foreground));
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
     font-size: 0.875rem;
     font-weight: 700;
     transition:
@@ -137,8 +129,8 @@ a {
   }
 
   .button-primary:hover {
-    background: rgb(var(--primary-dark));
-    box-shadow: 0 8px 20px rgb(var(--primary) / 0.2);
+    background: hsl(262 50% 45%);
+    box-shadow: 0 8px 20px hsl(var(--primary) / 0.2);
     transform: translateY(-1px);
   }
 
@@ -153,10 +145,10 @@ a {
     gap: 0.5rem;
     min-height: 44px;
     padding: 0.7rem 1.15rem;
-    border: 1px solid rgb(var(--primary) / 0.3);
+    border: 1px solid hsl(var(--primary) / 0.3);
     border-radius: 0.7rem;
-    background: rgb(var(--card));
-    color: rgb(var(--primary));
+    background: hsl(var(--card));
+    color: hsl(var(--primary));
     font-size: 0.875rem;
     font-weight: 700;
     transition:
@@ -166,15 +158,11 @@ a {
   }
 
   .button-secondary:hover {
-    border-color: rgb(var(--primary) / 0.5);
-    background: rgb(var(--primary-light));
+    border-color: hsl(var(--primary) / 0.5);
+    background: hsl(var(--accent));
     transform: translateY(-1px);
   }
 }
-
-/* -------------------------------------------------------
-   Scrollbar
-------------------------------------------------------- */
 
 ::-webkit-scrollbar {
   width: 9px;
@@ -187,18 +175,14 @@ a {
 ::-webkit-scrollbar-thumb {
   border: 2px solid transparent;
   border-radius: 999px;
-  background: rgb(var(--border));
+  background: hsl(var(--border));
   background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgb(198 198 209);
+  background: hsl(220 10% 76%);
   background-clip: padding-box;
 }
-
-/* -------------------------------------------------------
-   Responsive adjustments
-------------------------------------------------------- */
 
 @media (max-width: 640px) {
   .section-padding {

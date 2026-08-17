@@ -5,26 +5,10 @@ function Logo() {
     <Link
       href="/"
       aria-label="iSkole home"
-      className="group inline-flex items-center gap-2.5"
+      className="group inline-flex items-center gap-2"
     >
-      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-white shadow-sm transition-transform duration-200 group-hover:-rotate-3">
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          className="h-5 w-5"
-          aria-hidden="true"
-        >
-          <path d="M3 7.5 12 3l9 4.5L12 12 3 7.5Z" />
-          <path d="M6 9.2V14c0 1.7 2.7 3.5 6 3.5s6-1.8 6-3.5V9.2" />
-          <path d="M21 8v5" />
-          <path d="M19.8 15.5a1.2 1.2 0 1 0 2.4 0c0-.7-.4-1.1-1.2-2.5-.8 1.4-1.2 1.8-1.2 2.5Z" />
-        </svg>
-      </span>
-
-      <span className="font-heading text-xl font-extrabold tracking-tight text-foreground">
-        i<span className="text-primary">Skole</span>
+      <span className="text-2xl font-extrabold tracking-tight text-primary">
+        iSkole
       </span>
     </Link>
   );

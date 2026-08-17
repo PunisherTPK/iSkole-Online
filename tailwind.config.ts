@@ -65,7 +65,21 @@ const config: Config = {
         soft: "0 18px 45px rgba(15, 23, 42, 0.08)",
       },
       fontFamily: {
-        sans: ["var(--font-inter)", "Inter", "system-ui", "sans-serif"],
+        sans: [
+          "var(--font-inter)",
+          "Inter",
+          "system-ui",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "\"Segoe UI\"",
+          "sans-serif",
+        ],
+        heading: [
+          "var(--font-inter)",
+          "Inter",
+          "system-ui",
+          "sans-serif",
+        ],
       },
       keyframes: {
         "accordion-down": {
