@@ -43,15 +43,16 @@ export default function TeacherStudioPage() {
     if (profile.role === "teacher") {
       const { data, error: assignmentError } = await supabase.from("teacher_subjects").select("subject_id").eq("teacher_id", user.id).eq("is_active", true);
       if (assignmentError) { setError(assignmentError.message); setLoading(false); return; }
-      subjectIds = (data ?? []).map((item) => (item as AssignmentRow).subject_id);
+      const assignmentRows = (data ?? []) as AssignmentRow[];
+      subjectIds = assignmentRows.map((item) => item.subject_id);
     }
 
     let subjectQuery = supabase.from("subjects").select("id, name, code, levels(name, curriculums(name))").eq("is_active", true).order("name");
     if (subjectIds) subjectQuery = subjectQuery.in("id", subjectIds);
     const { data: subjectData, error: subjectError } = await subjectQuery;
     if (subjectError) { setError(subjectError.message); setLoading(false); return; }
-
-    const normalizedSubjects: Subject[] = (subjectData ?? []).map((raw) => {
+    const subjectRows = (subjectData ?? []) as SubjectRow[];
+    const normalizedSubjects: Subject[] = subjectRows.map((raw) => {
       const row = raw as SubjectRow;
       const level = Array.isArray(row.levels) ? row.levels[0] : row.levels;
       const curriculum = level ? (Array.isArray(level.curriculums) ? level.curriculums[0] : level.curriculums) : null;
