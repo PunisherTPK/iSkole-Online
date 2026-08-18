@@ -5,9 +5,16 @@ import {
   BookOpen,
   ChevronDown,
   ChevronRight,
+  FileText,
+  FolderPlus,
   GraduationCap,
   Layers3,
+  MoreHorizontal,
+  Pencil,
+  Plus,
   Search,
+  Trash2,
+  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -17,9 +24,7 @@ type Subject = {
   id: string;
   name: string;
   code: string | null;
-  level_id: string;
   level_name?: string;
-  curriculum_id?: string;
   curriculum_name?: string;
 };
 
@@ -32,36 +37,32 @@ type Node = {
   is_active: boolean;
 };
 
-type AssignmentRow = {
+type QuestionPage = {
+  id: string;
   subject_id: string;
+  content_node_id: string | null;
+  title: string;
+  description: string | null;
+  page_type: string;
+  is_published: boolean;
 };
 
 type SubjectRow = {
   id: string;
   name: string;
   code: string | null;
-  level_id: string;
   levels:
-    | {
-        id: string;
-        name: string;
-        curriculum_id: string;
-        curriculums:
-          | { id: string; name: string }
-          | { id: string; name: string }[]
-          | null;
-      }
-    | {
-        id: string;
-        name: string;
-        curriculum_id: string;
-        curriculums:
-          | { id: string; name: string }
-          | { id: string; name: string }[]
-          | null;
-      }[]
+    | { name: string; curriculums: { name: string } | { name: string }[] | null }
+    | { name: string; curriculums: { name: string } | { name: string }[] | null }[]
     | null;
 };
+
+type AssignmentRow = { subject_id: string };
+
+type ModalState =
+  | { kind: "node"; parentId: string | null; editing?: Node }
+  | { kind: "question"; nodeId: string | null }
+  | null;
 
 export default function TeacherStudioPage() {
   const supabase = useMemo(() => createClient(), []);
@@ -69,387 +70,298 @@ export default function TeacherStudioPage() {
 
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [nodes, setNodes] = useState<Node[]>([]);
+  const [questionPages, setQuestionPages] = useState<QuestionPage[]>([]);
   const [selectedSubjectId, setSelectedSubjectId] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [modal, setModal] = useState<ModalState>(null);
+  const [nodeName, setNodeName] = useState("");
+  const [nodeDescription, setNodeDescription] = useState("");
+  const [pageTitle, setPageTitle] = useState("");
+  const [pageDescription, setPageDescription] = useState("");
+  const [pageType, setPageType] = useState("mcq");
 
-  useEffect(() => {
-    let mounted = true;
+  async function loadStudio() {
+    setLoading(true);
+    setError("");
 
-    async function loadStudio() {
-      setLoading(true);
-      setError("");
-
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        router.replace("/login");
-        return;
-      }
-
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      if (profileError) {
-        if (mounted) setError(profileError.message);
-        setLoading(false);
-        return;
-      }
-
-      if (profile?.role !== "teacher" && profile?.role !== "admin") {
-        router.replace("/");
-        return;
-      }
-
-      let subjectIds: string[] | null = null;
-
-      if (profile.role === "teacher") {
-        const { data: assignmentData, error: assignmentError } = await supabase
-          .from("teacher_subjects")
-          .select("subject_id")
-          .eq("teacher_id", user.id)
-          .eq("is_active", true);
-
-        if (assignmentError) {
-          if (mounted) setError(assignmentError.message);
-          setLoading(false);
-          return;
-        }
-
-        const assignments = (assignmentData ?? []) as AssignmentRow[];
-        subjectIds = assignments.map((item) => item.subject_id);
-
-        if (subjectIds.length === 0) {
-          if (mounted) {
-            setSubjects([]);
-            setNodes([]);
-            setLoading(false);
-          }
-          return;
-        }
-      }
-
-      let subjectQuery = supabase
-        .from("subjects")
-        .select(
-          "id, name, code, level_id, levels(id, name, curriculum_id, curriculums(id, name))",
-        )
-        .eq("is_active", true)
-        .order("name");
-
-      if (subjectIds) {
-        subjectQuery = subjectQuery.in("id", subjectIds);
-      }
-
-      const { data: subjectData, error: subjectError } = await subjectQuery;
-
-      if (subjectError) {
-        if (mounted) setError(subjectError.message);
-        setLoading(false);
-        return;
-      }
-
-      const subjectRows = (subjectData ?? []) as SubjectRow[];
-      const normalizedSubjects: Subject[] = subjectRows.map((item) => {
-        const level = Array.isArray(item.levels) ? item.levels[0] : item.levels;
-        const curriculum = level
-          ? Array.isArray(level.curriculums)
-            ? level.curriculums[0]
-            : level.curriculums
-          : undefined;
-
-        return {
-          id: item.id,
-          name: item.name,
-          code: item.code,
-          level_id: item.level_id,
-          level_name: level?.name,
-          curriculum_id: level?.curriculum_id,
-          curriculum_name: curriculum?.name,
-        };
-      });
-
-      const allowedSubjectIds = normalizedSubjects.map((item) => item.id);
-
-      let nodeData: Node[] = [];
-      if (allowedSubjectIds.length > 0) {
-        const { data, error: nodeError } = await supabase
-          .from("content_nodes")
-          .select("id, subject_id, parent_id, name, description, is_active")
-          .in("subject_id", allowedSubjectIds)
-          .eq("is_active", true)
-          .order("name");
-
-        if (nodeError) {
-          if (mounted) setError(nodeError.message);
-          setLoading(false);
-          return;
-        }
-
-        nodeData = (data ?? []) as Node[];
-      }
-
-      if (!mounted) return;
-
-      setSubjects(normalizedSubjects);
-      setNodes(nodeData);
-      setSelectedSubjectId((current) =>
-        current && normalizedSubjects.some((item) => item.id === current)
-          ? current
-          : normalizedSubjects[0]?.id ?? "",
-      );
-      setLoading(false);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      router.replace("/login");
+      return;
     }
 
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profileError) {
+      setError(profileError.message);
+      setLoading(false);
+      return;
+    }
+
+    if (profile?.role !== "teacher" && profile?.role !== "admin") {
+      router.replace("/");
+      return;
+    }
+
+    let subjectIds: string[] | null = null;
+    if (profile.role === "teacher") {
+      const { data, error: assignmentError } = await supabase
+        .from("teacher_subjects")
+        .select("subject_id")
+        .eq("teacher_id", user.id)
+        .eq("is_active", true);
+      if (assignmentError) {
+        setError(assignmentError.message);
+        setLoading(false);
+        return;
+      }
+      subjectIds = (data ?? as AssignmentRow[]).map((x) => x.subject_id);
+    }
+
+    let subjectQuery = supabase
+      .from("subjects")
+      .select("id, name, code, levels(name, curriculums(name))")
+      .eq("is_active", true)
+      .order("name");
+    if (subjectIds) subjectQuery = subjectQuery.in("id", subjectIds);
+
+    const { data: subjectData, error: subjectError } = await subjectQuery;
+    if (subjectError) {
+      setError(subjectError.message);
+      setLoading(false);
+      return;
+    }
+
+    const normalizedSubjects = ((subjectData ?? []) as SubjectRow[]).map((row) => {
+      const level = Array.isArray(row.levels) ? row.levels[0] : row.levels;
+      const curriculum = level
+        ? Array.isArray(level.curriculums) ? level.curriculums[0] : level.curriculums
+        : null;
+      return {
+        id: row.id,
+        name: row.name,
+        code: row.code,
+        level_name: level?.name,
+        curriculum_name: curriculum?.name,
+      };
+    });
+
+    const ids = normalizedSubjects.map((x) => x.id);
+    let nodeData: Node[] = [];
+    let pageData: QuestionPage[] = [];
+
+    if (ids.length) {
+      const [nodeResult, pageResult] = await Promise.all([
+        supabase.from("content_nodes").select("id, subject_id, parent_id, name, description, is_active").in("subject_id", ids).eq("is_active", true).order("name"),
+        supabase.from("question_pages").select("id, subject_id, content_node_id, title, description, page_type, is_published").in("subject_id", ids).order("title"),
+      ]);
+      if (nodeResult.error) {
+        setError(nodeResult.error.message);
+        setLoading(false);
+        return;
+      }
+      if (pageResult.error) {
+        setError(pageResult.error.message);
+        setLoading(false);
+        return;
+      }
+      nodeData = (nodeResult.data ?? []) as Node[];
+      pageData = (pageResult.data ?? []) as QuestionPage[];
+    }
+
+    setSubjects(normalizedSubjects);
+    setNodes(nodeData);
+    setQuestionPages(pageData);
+    setSelectedSubjectId((current) => current && ids.includes(current) ? current : ids[0] ?? "");
+    setLoading(false);
+  }
+
+  useEffect(() => {
     void loadStudio();
-    return () => {
-      mounted = false;
-    };
-  }, [router, supabase]);
+  }, []);
 
-  const selectedSubject = subjects.find((item) => item.id === selectedSubjectId);
-  const subjectNodes = nodes.filter((item) => item.subject_id === selectedSubjectId);
-  const normalizedSearch = search.trim().toLowerCase();
+  const selectedSubject = subjects.find((x) => x.id === selectedSubjectId);
+  const subjectNodes = nodes.filter((x) => x.subject_id === selectedSubjectId);
+  const subjectPages = questionPages.filter((x) => x.subject_id === selectedSubjectId);
+  const term = search.trim().toLowerCase();
 
-  const visibleNodes = normalizedSearch
-    ? subjectNodes.filter((node) =>
-        `${node.name} ${node.description ?? ""}`.toLowerCase().includes(normalizedSearch),
-      )
-    : subjectNodes;
+  function childrenOf(parentId: string | null) {
+    return subjectNodes.filter((x) => x.parent_id === parentId);
+  }
 
-  const roots = visibleNodes.filter((node) => !node.parent_id);
-
-  function childrenOf(parentId: string) {
-    return visibleNodes.filter((node) => node.parent_id === parentId);
+  function pagesAt(nodeId: string | null) {
+    return subjectPages.filter((x) => x.content_node_id === nodeId);
   }
 
   function toggleNode(id: string) {
     setExpanded((current) => {
       const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
   }
 
-  function nodeDepth(node: Node) {
-    let depth = 0;
-    let parentId = node.parent_id;
-    const seen = new Set<string>();
+  function openNodeModal(parentId: string | null, editing?: Node) {
+    setNodeName(editing?.name ?? "");
+    setNodeDescription(editing?.description ?? "");
+    setModal({ kind: "node", parentId, editing });
+  }
 
-    while (parentId && !seen.has(parentId)) {
-      seen.add(parentId);
-      const parent = subjectNodes.find((item) => item.id === parentId);
-      if (!parent) break;
-      depth += 1;
-      parentId = parent.parent_id;
+  function openQuestionModal(nodeId: string | null) {
+    setPageTitle("");
+    setPageDescription("");
+    setPageType("mcq");
+    setModal({ kind: "question", nodeId });
+  }
+
+  async function saveNode() {
+    if (!selectedSubjectId || !nodeName.trim()) return;
+    setSaving(true);
+    setError("");
+    const payload = {
+      subject_id: selectedSubjectId,
+      parent_id: modal?.kind === "node" ? modal.parentId : null,
+      name: nodeName.trim(),
+      description: nodeDescription.trim() || null,
+      is_active: true,
+    };
+    const result = modal?.kind === "node" && modal.editing
+      ? await supabase.from("content_nodes").update(payload).eq("id", modal.editing.id)
+      : await supabase.from("content_nodes").insert(payload);
+    if (result.error) setError(result.error.message);
+    else {
+      setModal(null);
+      await loadStudio();
     }
-
-    return depth;
+    setSaving(false);
   }
 
-  function nodeLabel(depth: number) {
-    if (depth === 0) return "Unit";
-    if (depth === 1) return "Topic";
-    if (depth === 2) return "Sub Topic";
-    return "Content";
+  async function deleteNode(node: Node) {
+    if (!confirm(`Delete "${node.name}" and its content?`)) return;
+    setError("");
+    const descendants = new Set<string>();
+    let changed = true;
+    descendants.add(node.id);
+    while (changed) {
+      changed = false;
+      for (const candidate of subjectNodes) {
+        if (candidate.parent_id && descendants.has(candidate.parent_id) && !descendants.has(candidate.id)) {
+          descendants.add(candidate.id);
+          changed = true;
+        }
+      }
+    }
+    const result = await supabase.from("content_nodes").delete().in("id", [...descendants]);
+    if (result.error) setError(result.error.message);
+    else await loadStudio();
   }
 
-  function renderNode(node: Node) {
-    const children = childrenOf(node.id);
-    const isOpen = expanded.has(node.id) || Boolean(normalizedSearch);
-    const depth = nodeDepth(node);
+  async function saveQuestionPage() {
+    if (!selectedSubjectId || !pageTitle.trim() || modal?.kind !== "question") return;
+    setSaving(true);
+    setError("");
+    const result = await supabase.from("question_pages").insert({
+      subject_id: selectedSubjectId,
+      content_node_id: modal.nodeId,
+      title: pageTitle.trim(),
+      description: pageDescription.trim() || null,
+      page_type: pageType,
+      is_published: false,
+    });
+    if (result.error) setError(result.error.message);
+    else {
+      setModal(null);
+      await loadStudio();
+    }
+    setSaving(false);
+  }
 
+  function matchesNode(node: Node) {
+    if (!term) return true;
+    return `${node.name} ${node.description ?? ""}`.toLowerCase().includes(term);
+  }
+
+  function renderPage(page: QuestionPage, depth: number) {
+    if (term && !`${page.title} ${page.description ?? ""}`.toLowerCase().includes(term)) return null;
     return (
-      <div key={node.id}>
-        <button
-          type="button"
-          onClick={() => toggleNode(node.id)}
-          className="group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-muted/50"
-          style={{ paddingLeft: `${12 + depth * 24}px` }}
-        >
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            {children.length > 0 ? (
-              isOpen ? (
-                <ChevronDown className="h-4 w-4" />
-              ) : (
-                <ChevronRight className="h-4 w-4" />
-              )
-            ) : (
-              <Layers3 className="h-3.5 w-3.5" />
-            )}
-          </span>
-
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-semibold text-foreground">
-              {node.name}
-            </span>
-            <span className="mt-0.5 block text-[11px] text-muted-foreground">
-              {nodeLabel(depth)}
-            </span>
-          </span>
-
-          {children.length > 0 && (
-            <span className="text-[10px] font-semibold text-muted-foreground">
-              {children.length}
-            </span>
-          )}
-        </button>
-
-        {isOpen && children.length > 0 && (
-          <div>{children.map(renderNode)}</div>
-        )}
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="h-20 animate-pulse rounded-2xl bg-muted" />
-        <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
-          <div className="h-[520px] animate-pulse rounded-2xl bg-muted" />
-          <div className="h-[520px] animate-pulse rounded-2xl bg-muted" />
+      <div key={page.id} className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ paddingLeft: `${24 + depth * 24}px` }}>
+        <FileText className="h-4 w-4 shrink-0 text-primary" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium">{page.title}</p>
+          <p className="text-[11px] text-muted-foreground">Question Page · {page.page_type.toUpperCase()}</p>
         </div>
+        <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${page.is_published ? "bg-emerald-500/10 text-emerald-600" : "bg-muted text-muted-foreground"}`}>
+          {page.is_published ? "Published" : "Draft"}
+        </span>
       </div>
     );
   }
+
+  function renderTree(parentId: string | null, depth = 0): React.ReactNode {
+    const children = childrenOf(parentId).filter((node) => !term || matchesNode(node) || childrenOf(node.id).some(matchesNode) || pagesAt(node.id).some((p) => `${p.title} ${p.description ?? ""}`.toLowerCase().includes(term)));
+    const directPages = pagesAt(parentId);
+    return (
+      <>
+        {parentId === null && directPages.map((page) => renderPage(page, depth))}
+        {children.map((node) => {
+          const childNodes = childrenOf(node.id);
+          const childPages = pagesAt(node.id);
+          const open = expanded.has(node.id) || Boolean(term);
+          return (
+            <div key={node.id}>
+              <div className="group flex items-center gap-2 rounded-xl px-2 py-1.5 hover:bg-muted/50">
+                <button type="button" onClick={() => toggleNode(node.id)} className="flex min-w-0 flex-1 items-center gap-3 rounded-lg py-2 text-left" style={{ paddingLeft: `${depth * 24}px` }}>
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    {childNodes.length || childPages.length ? (open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />) : <Layers3 className="h-3.5 w-3.5" />}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold">{node.name}</span>
+                    <span className="block truncate text-[11px] text-muted-foreground">Content node · {childNodes.length + childPages.length} item{childNodes.length + childPages.length === 1 ? "" : "s"}</span>
+                  </span>
+                </button>
+                <div className="flex shrink-0 items-center opacity-0 transition group-hover:opacity-100">
+                  <button title="Add child content" type="button" onClick={() => openNodeModal(node.id)} className="rounded-lg p-2 hover:bg-muted"><FolderPlus className="h-4 w-4" /></button>
+                  <button title="Add Question Page" type="button" onClick={() => openQuestionModal(node.id)} className="rounded-lg p-2 hover:bg-muted"><FileText className="h-4 w-4" /></button>
+                  <button title="Edit" type="button" onClick={() => openNodeModal(node.parent_id, node)} className="rounded-lg p-2 hover:bg-muted"><Pencil className="h-4 w-4" /></button>
+                  <button title="Delete" type="button" onClick={() => void deleteNode(node)} className="rounded-lg p-2 text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></button>
+                </div>
+              </div>
+              {open && <div>{childPages.map((page) => renderPage(page, depth + 1))}{renderTree(node.id, depth + 1)}</div>}
+            </div>
+          );
+        })}
+      </>
+    );
+  }
+
+  if (loading) return <div className="space-y-6"><div className="h-20 animate-pulse rounded-2xl bg-muted" /><div className="grid gap-4 lg:grid-cols-[300px_1fr]"><div className="h-[520px] animate-pulse rounded-2xl bg-muted" /><div className="h-[520px] animate-pulse rounded-2xl bg-muted" /></div></div>;
 
   return (
     <div className="space-y-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="text-sm font-semibold text-primary">Teacher Workspace</p>
-          <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-foreground">
-            Teacher Studio
-          </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Build and manage learning content for your assigned subjects.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-semibold text-muted-foreground">
-          <GraduationCap className="h-4 w-4 text-primary" />
-          {subjects.length} assigned subject{subjects.length === 1 ? "" : "s"}
-        </div>
+        <div><p className="text-sm font-semibold text-primary">Teacher Workspace</p><h1 className="mt-1 text-3xl font-extrabold tracking-tight">Teacher Studio</h1><p className="mt-2 text-sm text-muted-foreground">Build your own content structure. There are no predefined levels below a subject.</p></div>
+        <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-semibold text-muted-foreground"><GraduationCap className="h-4 w-4 text-primary" />{subjects.length} assigned subject{subjects.length === 1 ? "" : "s"}</div>
       </header>
 
-      {error && (
-        <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-          {error}
-        </div>
-      )}
+      {error && <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">{error}</div>}
 
-      {subjects.length === 0 ? (
-        <section className="flex min-h-[420px] flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card px-6 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <BookOpen className="h-6 w-6" />
-          </div>
-          <h2 className="mt-5 text-lg font-bold text-foreground">No subjects assigned</h2>
-          <p className="mt-2 max-w-md text-sm text-muted-foreground">
-            An administrator needs to assign subjects to your teacher account before you can manage learning content.
-          </p>
-        </section>
-      ) : (
+      {subjects.length === 0 ? <section className="flex min-h-[420px] flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card text-center"><BookOpen className="h-8 w-8 text-primary" /><h2 className="mt-4 text-lg font-bold">No subjects assigned</h2><p className="mt-2 text-sm text-muted-foreground">An administrator needs to assign a subject first.</p></section> : (
         <div className="grid gap-5 lg:grid-cols-[300px_1fr]">
-          <aside className="overflow-hidden rounded-2xl border border-border bg-card">
-            <div className="border-b border-border px-4 py-4">
-              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                My Subjects
-              </p>
-            </div>
+          <aside className="overflow-hidden rounded-2xl border border-border bg-card"><div className="border-b border-border px-4 py-4"><p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">My Subjects</p></div><div className="space-y-1 p-2">{subjects.map((subject) => <button key={subject.id} type="button" onClick={() => { setSelectedSubjectId(subject.id); setSearch(""); setExpanded(new Set()); }} className={`w-full rounded-xl px-3 py-3 text-left transition ${subject.id === selectedSubjectId ? "bg-primary/10 text-primary" : "hover:bg-muted/50"}`}><div className="flex items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted"><BookOpen className="h-4 w-4" /></span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold">{subject.name}</span><span className="block truncate text-[11px] text-muted-foreground">{[subject.curriculum_name, subject.level_name].filter(Boolean).join(" → ")}</span></span></div></button>)}</div></aside>
 
-            <div className="space-y-1 p-2">
-              {subjects.map((subject) => {
-                const active = subject.id === selectedSubjectId;
-                return (
-                  <button
-                    key={subject.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedSubjectId(subject.id);
-                      setSearch("");
-                      setExpanded(new Set());
-                    }}
-                    className={`w-full rounded-xl px-3 py-3 text-left transition ${
-                      active
-                        ? "bg-primary/10 text-primary"
-                        : "text-foreground hover:bg-muted/50"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted">
-                        <BookOpen className="h-4 w-4" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-bold">{subject.name}</span>
-                        <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
-                          {[subject.curriculum_name, subject.level_name].filter(Boolean).join(" → ") || "Assigned subject"}
-                        </span>
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </aside>
-
-          <main className="min-w-0 overflow-hidden rounded-2xl border border-border bg-card">
-            <div className="border-b border-border p-5">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-                    <span>{selectedSubject?.curriculum_name ?? "Curriculum"}</span>
-                    <span>→</span>
-                    <span>{selectedSubject?.level_name ?? "Level"}</span>
-                  </div>
-                  <h2 className="mt-1 truncate text-xl font-bold text-foreground">
-                    {selectedSubject?.name ?? "Subject"}
-                  </h2>
-                </div>
-
-                <div className="relative w-full sm:w-64">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    type="search"
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                    placeholder="Search content..."
-                    className="h-10 w-full rounded-xl border border-input bg-background pl-9 pr-3 text-sm outline-none transition placeholder:text-muted-foreground/60 focus:border-primary focus:ring-4 focus:ring-primary/10"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="p-3">
-              {roots.length === 0 ? (
-                <div className="flex min-h-[360px] flex-col items-center justify-center px-6 text-center">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
-                    <Layers3 className="h-5 w-5" />
-                  </div>
-                  <p className="mt-4 text-sm font-bold text-foreground">
-                    {search ? "No matching content" : "No content yet"}
-                  </p>
-                  <p className="mt-1 max-w-sm text-xs text-muted-foreground">
-                    {search
-                      ? "Try a different search term."
-                      : "Units, topics and sub topics for this subject will appear here."}
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-1">{roots.map(renderNode)}</div>
-              )}
-            </div>
-          </main>
+          <main className="min-w-0 overflow-hidden rounded-2xl border border-border bg-card"><div className="border-b border-border p-5"><div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><div className="text-xs font-semibold text-muted-foreground">{selectedSubject?.curriculum_name} → {selectedSubject?.level_name}</div><h2 className="mt-1 truncate text-xl font-bold">{selectedSubject?.name}</h2></div><div className="flex gap-2"><div className="relative w-full sm:w-64"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search content..." className="h-10 w-full rounded-xl border border-input bg-background pl-9 pr-3 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary/10" /></div><button type="button" onClick={() => openNodeModal(null)} className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground hover:opacity-90"><Plus className="h-4 w-4" /> Content</button><button type="button" onClick={() => openQuestionModal(null)} className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border border-border px-3 text-sm font-semibold hover:bg-muted"><FileText className="h-4 w-4" /> Q Page</button></div></div></div><div className="p-3">{renderTree(null)}</div></main>
         </div>
       )}
+
+      {modal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"><div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl"><div className="flex items-center justify-between"><h3 className="text-lg font-bold">{modal.kind === "node" ? modal.editing ? "Edit Content" : "Add Content" : "Add Question Page"}</h3><button type="button" onClick={() => setModal(null)} className="rounded-lg p-2 hover:bg-muted"><X className="h-4 w-4" /></button></div>{modal.kind === "node" ? <div className="mt-5 space-y-4"><label className="block text-sm font-semibold">Name<input autoFocus value={nodeName} onChange={(e) => setNodeName(e.target.value)} className="mt-2 h-10 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus:border-primary" placeholder="e.g. Mechanics" /></label><label className="block text-sm font-semibold">Description<textarea value={nodeDescription} onChange={(e) => setNodeDescription(e.target.value)} className="mt-2 min-h-24 w-full rounded-xl border border-input bg-background p-3 text-sm outline-none focus:border-primary" /></label><button disabled={saving || !nodeName.trim()} type="button" onClick={() => void saveNode()} className="h-10 w-full rounded-xl bg-primary text-sm font-semibold text-primary-foreground disabled:opacity-50">{saving ? "Saving..." : "Save Content"}</button></div> : <div className="mt-5 space-y-4"><label className="block text-sm font-semibold">Title<input autoFocus value={pageTitle} onChange={(e) => setPageTitle(e.target.value)} className="mt-2 h-10 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus:border-primary" placeholder="Question page title" /></label><label className="block text-sm font-semibold">Description<textarea value={pageDescription} onChange={(e) => setPageDescription(e.target.value)} className="mt-2 min-h-20 w-full rounded-xl border border-input bg-background p-3 text-sm outline-none focus:border-primary" /></label><label className="block text-sm font-semibold">Page Type<select value={pageType} onChange={(e) => setPageType(e.target.value)} className="mt-2 h-10 w-full rounded-xl border border-input bg-background px-3 text-sm"><option value="mcq">MCQ</option><option value="structured">Structured</option></select></label><button disabled={saving || !pageTitle.trim()} type="button" onClick={() => void saveQuestionPage()} className="h-10 w-full rounded-xl bg-primary text-sm font-semibold text-primary-foreground disabled:opacity-50">{saving ? "Creating..." : "Create Question Page"}</button></div>}</div></div>}
     </div>
   );
 }
