@@ -8,7 +8,6 @@ import {
   GraduationCap,
   Layers3,
   Search,
-  UserRound,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -31,6 +30,37 @@ type Node = {
   name: string;
   description: string | null;
   is_active: boolean;
+};
+
+type AssignmentRow = {
+  subject_id: string;
+};
+
+type SubjectRow = {
+  id: string;
+  name: string;
+  code: string | null;
+  level_id: string;
+  levels:
+    | {
+        id: string;
+        name: string;
+        curriculum_id: string;
+        curriculums:
+          | { id: string; name: string }
+          | { id: string; name: string }[]
+          | null;
+      }
+    | {
+        id: string;
+        name: string;
+        curriculum_id: string;
+        curriculums:
+          | { id: string; name: string }
+          | { id: string; name: string }[]
+          | null;
+      }[]
+    | null;
 };
 
 export default function TeacherStudioPage() {
@@ -81,7 +111,7 @@ export default function TeacherStudioPage() {
       let subjectIds: string[] | null = null;
 
       if (profile.role === "teacher") {
-        const { data: assignments, error: assignmentError } = await supabase
+        const { data: assignmentData, error: assignmentError } = await supabase
           .from("teacher_subjects")
           .select("subject_id")
           .eq("teacher_id", user.id)
@@ -93,7 +123,8 @@ export default function TeacherStudioPage() {
           return;
         }
 
-        subjectIds = (assignments ?? []).map((item) => item.subject_id);
+        const assignments = (assignmentData ?? []) as AssignmentRow[];
+        subjectIds = assignments.map((item) => item.subject_id);
 
         if (subjectIds.length === 0) {
           if (mounted) {
@@ -107,7 +138,9 @@ export default function TeacherStudioPage() {
 
       let subjectQuery = supabase
         .from("subjects")
-        .select("id, name, code, level_id, levels(id, name, curriculum_id, curriculums(id, name))")
+        .select(
+          "id, name, code, level_id, levels(id, name, curriculum_id, curriculums(id, name))",
+        )
         .eq("is_active", true)
         .order("name");
 
@@ -123,7 +156,8 @@ export default function TeacherStudioPage() {
         return;
       }
 
-      const normalizedSubjects: Subject[] = (subjectData ?? []).map((item) => {
+      const subjectRows = (subjectData ?? []) as SubjectRow[];
+      const normalizedSubjects: Subject[] = subjectRows.map((item) => {
         const level = Array.isArray(item.levels) ? item.levels[0] : item.levels;
         const curriculum = level
           ? Array.isArray(level.curriculums)
@@ -159,7 +193,7 @@ export default function TeacherStudioPage() {
           return;
         }
 
-        nodeData = data ?? [];
+        nodeData = (data ?? []) as Node[];
       }
 
       if (!mounted) return;
