@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Check, FileImage, Loader2, Plus, Save, Trash2, Upload, X } from "lucide-react";
+import { ArrowLeft, FileImage, Loader2, Plus, Save, Trash2, Upload } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -28,7 +28,7 @@ type Question = {
 };
 
 type Answer = {
-  id: string;
+  id: string | null;
   question_id: string;
   answer_image_url: string | null;
   answer_text: string | null;
@@ -54,15 +54,27 @@ export default function QuestionPageEditor() {
   async function load() {
     setLoading(true);
     setError("");
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       router.replace("/login");
       return;
     }
 
-    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+
     if (profile?.role !== "teacher" && profile?.role !== "admin") {
       router.replace("/");
+      return;
+    }
+
+    if (!pageId) {
+      setError("Question Page ID is missing.");
+      setLoading(false);
       return;
     }
 
@@ -105,6 +117,7 @@ export default function QuestionPageEditor() {
         setLoading(false);
         return;
       }
+
       answerRows = (data ?? []) as Answer[];
     }
 
@@ -115,30 +128,55 @@ export default function QuestionPageEditor() {
     setLoading(false);
   }
 
-  useEffect(() => { void load(); }, [pageId]);
+  useEffect(() => {
+    void load();
+  }, [pageId]);
 
   async function uploadImage(file: File, folder: "questions" | "answers") {
     const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
     const path = `${folder}/${crypto.randomUUID()}.${extension}`;
-    const { error: uploadError } = await supabase.storage.from(folder === "questions" ? "question-images" : "answer-images").upload(path, file, { upsert: false, contentType: file.type });
-    if (uploadError) throw new Error(uploadError.message);
     const bucket = folder === "questions" ? "question-images" : "answer-images";
+
+    const { error: uploadError } = await supabase.storage
+      .from(bucket)
+      .upload(path, file, {
+        upsert: false,
+        contentType: file.type,
+      });
+
+    if (uploadError) throw new Error(uploadError.message);
+
     return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
   }
 
   async function addQuestion() {
     if (!page) return;
+
     setSaving(true);
     setError("");
+
     try {
-      const nextOrder = questions.length ? Math.max(...questions.map((question) => question.order_index)) + 1 : 0;
-      const nextNumber = questions.length ? Math.max(...questions.map((question) => question.question_number ?? 0)) + 1 : 1;
+      const nextOrder = questions.length
+        ? Math.max(...questions.map((question) => question.order_index)) + 1
+        : 0;
+      const nextNumber = questions.length
+        ? Math.max(...questions.map((question) => question.question_number ?? 0)) + 1
+        : 1;
+
       const { data, error: insertError } = await supabase
         .from("questions")
-        .insert({ question_page_id: page.id, question_number: nextNumber, question_type: page.page_type, marks: 1, order_index: nextOrder })
+        .insert({
+          question_page_id: page.id,
+          question_number: nextNumber,
+          question_type: page.page_type,
+          marks: 1,
+          order_index: nextOrder,
+        })
         .select("id, question_page_id, question_number, question_type, marks, order_index, question_image_url, paper_code, paper_question_number")
         .single();
+
       if (insertError) throw new Error(insertError.message);
+
       const question = data as Question;
       setQuestions((current) => [...current, question]);
       setSelectedId(question.id);
@@ -152,13 +190,51 @@ export default function QuestionPageEditor() {
   async function saveQuestion(question: Question) {
     setSaving(true);
     setError("");
+
     try {
-      const { error: updateError } = await supabase.from("questions").update({ question_number: question.question_number, marks: question.marks, paper_code: question.paper_code || null, paper_question_number: question.paper_question_number || null }).eq("id", question.id);
+      const { error: updateError } = await supabase
+        .from("questions")
+        .update({
+          question_number: question.question_number,
+          marks: question.marks,
+          paper_code: question.paper_code?.trim() || null,
+          paper_question_number: question.paper_question_number?.trim() || null,
+        })
+        .eq("id", question.id);
+
       if (updateError) throw new Error(updateError.message);
+
       const answer = answers[question.id];
+
       if (answer) {
-        const { error: answerError } = await supabase.from("question_answers").update({ answer_text: answer.answer_text || null, correct_option: answer.correct_option || null, answer_image_url: answer.answer_image_url || null }).eq("id", answer.id);
-        if (answerError) throw new Error(answerError.message);
+        const payload = {
+          question_id: question.id,
+          answer_text: answer.answer_text?.trim() || null,
+          correct_option: answer.correct_option || null,
+          answer_image_url: answer.answer_image_url || null,
+        };
+
+        if (answer.id) {
+          const { error: answerError } = await supabase
+            .from("question_answers")
+            .update(payload)
+            .eq("id", answer.id);
+
+          if (answerError) throw new Error(answerError.message);
+        } else {
+          const { data: insertedAnswer, error: answerError } = await supabase
+            .from("question_answers")
+            .insert(payload)
+            .select("id, question_id, answer_image_url, answer_text, correct_option")
+            .single();
+
+          if (answerError) throw new Error(answerError.message);
+
+          setAnswers((current) => ({
+            ...current,
+            [question.id]: insertedAnswer as Answer,
+          }));
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to save question.");
@@ -169,26 +245,46 @@ export default function QuestionPageEditor() {
 
   async function removeQuestion(id: string) {
     if (!confirm("Delete this question?")) return;
+
     setSaving(true);
     setError("");
-    const { error: deleteError } = await supabase.from("questions").delete().eq("id", id);
-    if (deleteError) setError(deleteError.message);
-    else {
+
+    const { error: deleteError } = await supabase
+      .from("questions")
+      .delete()
+      .eq("id", id);
+
+    if (deleteError) {
+      setError(deleteError.message);
+    } else {
       setQuestions((current) => current.filter((question) => question.id !== id));
-      setAnswers((current) => { const next = { ...current }; delete next[id]; return next; });
+      setAnswers((current) => {
+        const next = { ...current };
+        delete next[id];
+        return next;
+      });
       setSelectedId((current) => current === id ? null : current);
     }
+
     setSaving(false);
   }
 
   async function handleQuestionImage(question: Question, file: File) {
     setSaving(true);
     setError("");
+
     try {
       const url = await uploadImage(file, "questions");
-      const { error: updateError } = await supabase.from("questions").update({ question_image_url: url }).eq("id", question.id);
+      const { error: updateError } = await supabase
+        .from("questions")
+        .update({ question_image_url: url })
+        .eq("id", question.id);
+
       if (updateError) throw new Error(updateError.message);
-      setQuestions((current) => current.map((item) => item.id === question.id ? { ...item, question_image_url: url } : item));
+
+      setQuestions((current) => current.map((item) =>
+        item.id === question.id ? { ...item, question_image_url: url } : item,
+      ));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to upload question image.");
     } finally {
@@ -199,17 +295,39 @@ export default function QuestionPageEditor() {
   async function handleAnswerImage(question: Question, file: File) {
     setSaving(true);
     setError("");
+
     try {
       const url = await uploadImage(file, "answers");
       const existing = answers[question.id];
-      if (existing) {
-        const { error: updateError } = await supabase.from("question_answers").update({ answer_image_url: url }).eq("id", existing.id);
+
+      if (existing?.id) {
+        const { error: updateError } = await supabase
+          .from("question_answers")
+          .update({ answer_image_url: url })
+          .eq("id", existing.id);
+
         if (updateError) throw new Error(updateError.message);
-        setAnswers((current) => ({ ...current, [question.id]: { ...existing, answer_image_url: url } }));
+
+        setAnswers((current) => ({
+          ...current,
+          [question.id]: { ...existing, answer_image_url: url },
+        }));
       } else {
-        const { data, error: insertError } = await supabase.from("question_answers").insert({ question_id: question.id, answer_image_url: url }).select("id, question_id, answer_image_url, answer_text, correct_option").single();
+        const { data, error: insertError } = await supabase
+          .from("question_answers")
+          .insert({
+            question_id: question.id,
+            answer_image_url: url,
+          })
+          .select("id, question_id, answer_image_url, answer_text, correct_option")
+          .single();
+
         if (insertError) throw new Error(insertError.message);
-        setAnswers((current) => ({ ...current, [question.id]: data as Answer }));
+
+        setAnswers((current) => ({
+          ...current,
+          [question.id]: data as Answer,
+        }));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to upload answer image.");
@@ -219,15 +337,43 @@ export default function QuestionPageEditor() {
   }
 
   function updateQuestion(id: string, patch: Partial<Question>) {
-    setQuestions((current) => current.map((question) => question.id === id ? { ...question, ...patch } : question));
+    setQuestions((current) => current.map((question) =>
+      question.id === id ? { ...question, ...patch } : question,
+    ));
   }
 
   function updateAnswer(id: string, patch: Partial<Answer>) {
-    setAnswers((current) => ({ ...current, [id]: { ...(current[id] ?? { id: "", question_id: id, answer_image_url: null, answer_text: null, correct_option: null }), ...patch } }));
+    setAnswers((current) => ({
+      ...current,
+      [id]: {
+        ...(current[id] ?? {
+          id: null,
+          question_id: id,
+          answer_image_url: null,
+          answer_text: null,
+          correct_option: null,
+        }),
+        ...patch,
+      },
+    }));
   }
 
-  if (loading) return <div className="space-y-5"><div className="h-20 animate-pulse rounded-2xl bg-muted" /><div className="h-[500px] animate-pulse rounded-2xl bg-muted" /></div>;
-  if (!page) return <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-6 text-sm text-destructive">{error || "Question Page not found."}</div>;
+  if (loading) {
+    return (
+      <div className="space-y-5">
+        <div className="h-20 animate-pulse rounded-2xl bg-muted" />
+        <div className="h-[500px] animate-pulse rounded-2xl bg-muted" />
+      </div>
+    );
+  }
+
+  if (!page) {
+    return (
+      <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-6 text-sm text-destructive">
+        {error || "Question Page not found."}
+      </div>
+    );
+  }
 
   const selected = questions.find((question) => question.id === selectedId) ?? null;
   const selectedAnswer = selected ? answers[selected.id] : undefined;
@@ -236,49 +382,275 @@ export default function QuestionPageEditor() {
     <div className="space-y-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <button type="button" onClick={() => router.push("/teacher/studio")} className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Teacher Studio</button>
-          <p className="text-xs font-semibold uppercase tracking-wider text-primary">Question Page · {page.page_type.toUpperCase()}</p>
+          <button
+            type="button"
+            onClick={() => router.push("/teacher/studio")}
+            className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" /> Teacher Studio
+          </button>
+          <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+            Question Page · {page.page_type.toUpperCase()}
+          </p>
           <h1 className="mt-1 text-2xl font-extrabold tracking-tight">{page.title}</h1>
-          {page.description && <p className="mt-1 text-sm text-muted-foreground">{page.description}</p>}
+          {page.description && (
+            <p className="mt-1 text-sm text-muted-foreground">{page.description}</p>
+          )}
         </div>
-        <button type="button" onClick={() => void addQuestion()} disabled={saving} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"><Plus className="h-4 w-4" /> Add Question</button>
+
+        <button
+          type="button"
+          onClick={() => void addQuestion()}
+          disabled={saving}
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+        >
+          <Plus className="h-4 w-4" /> Add Question
+        </button>
       </div>
 
-      {error && <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">{error}</div>}
+      {error && (
+        <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          {error}
+        </div>
+      )}
 
       <div className="grid gap-5 lg:grid-cols-[280px_1fr]">
         <aside className="rounded-2xl border border-border bg-card p-3">
-          <div className="px-2 py-2"><p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Questions</p><p className="mt-1 text-xs text-muted-foreground">{questions.length} question{questions.length === 1 ? "" : "s"}</p></div>
-          <div className="mt-2 space-y-1">
-            {questions.map((question, index) => <button key={question.id} type="button" onClick={() => setSelectedId(question.id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left ${selectedId === question.id ? "bg-primary/10 text-primary" : "hover:bg-muted/50"}`}><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-xs font-bold">{question.question_number ?? index + 1}</span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">Question {question.question_number ?? index + 1}</span><span className="block text-[11px] text-muted-foreground">{question.marks} mark{Number(question.marks) === 1 ? "" : "s"}</span></span></button>)}
+          <div className="px-2 py-2">
+            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Questions</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {questions.length} question{questions.length === 1 ? "" : "s"}
+            </p>
           </div>
-          {!questions.length && <div className="px-2 py-10 text-center text-xs text-muted-foreground">No questions yet.<br />Add your first question.</div>}
+
+          <div className="mt-2 space-y-1">
+            {questions.map((question, index) => (
+              <button
+                key={question.id}
+                type="button"
+                onClick={() => setSelectedId(question.id)}
+                className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left ${
+                  selectedId === question.id ? "bg-primary/10 text-primary" : "hover:bg-muted/50"
+                }`}
+              >
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-xs font-bold">
+                  {question.question_number ?? index + 1}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold">
+                    Question {question.question_number ?? index + 1}
+                  </span>
+                  <span className="block text-[11px] text-muted-foreground">
+                    {question.marks} mark{Number(question.marks) === 1 ? "" : "s"}
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {!questions.length && (
+            <div className="px-2 py-10 text-center text-xs text-muted-foreground">
+              No questions yet.<br />Add your first question.
+            </div>
+          )}
         </aside>
 
         <main className="min-w-0 rounded-2xl border border-border bg-card p-5">
-          {!selected ? <div className="flex min-h-[420px] flex-col items-center justify-center text-center"><FileImage className="h-8 w-8 text-muted-foreground" /><h2 className="mt-4 text-lg font-bold">Start building this Question Page</h2><p className="mt-2 max-w-sm text-sm text-muted-foreground">Add questions and upload the question images, answers, marks and correct options here.</p></div> : <div className="space-y-6">
-            <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-semibold text-primary">Question {selected.question_number ?? 1}</p><h2 className="mt-1 text-lg font-bold">{page.page_type === "mcq" ? "Multiple Choice Question" : "Structured Question"}</h2></div><button type="button" onClick={() => void removeQuestion(selected.id)} disabled={saving} className="rounded-xl p-2 text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></button></div>
-
-            <div className="grid gap-4 sm:grid-cols-3">
-              <label className="text-sm font-semibold">Question Number<input type="number" min="1" value={selected.question_number ?? ""} onChange={(e) => updateQuestion(selected.id, { question_number: e.target.value ? Number(e.target.value) : null })} className={inputClass} /></label>
-              <label className="text-sm font-semibold">Marks<input type="number" min="0" step="0.5" value={selected.marks} onChange={(e) => updateQuestion(selected.id, { marks: Number(e.target.value) })} className={inputClass} /></label>
-              <label className="text-sm font-semibold">Paper Code<input value={selected.paper_code ?? ""} onChange={(e) => updateQuestion(selected.id, { paper_code: e.target.value })} className={inputClass} placeholder="Optional" /></label>
+          {!selected ? (
+            <div className="flex min-h-[420px] flex-col items-center justify-center text-center">
+              <FileImage className="h-8 w-8 text-muted-foreground" />
+              <h2 className="mt-4 text-lg font-bold">Start building this Question Page</h2>
+              <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+                Add questions and upload question images, answers, marks and correct options here.
+              </p>
             </div>
+          ) : (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold text-primary">
+                    iSkole Question {selected.question_number ?? 1}
+                  </p>
+                  <h2 className="mt-1 text-lg font-bold">
+                    {page.page_type === "mcq" ? "Multiple Choice Question" : "Structured Question"}
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void removeQuestion(selected.id)}
+                  disabled={saving}
+                  className="rounded-xl p-2 text-destructive hover:bg-destructive/10"
+                  aria-label="Delete question"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
 
-            <div className="rounded-2xl border border-border p-4">
-              <div className="flex items-center justify-between gap-3"><div><h3 className="text-sm font-bold">Question Image</h3><p className="mt-1 text-xs text-muted-foreground">Upload the complete question, including choices if it is an MCQ.</p></div><label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-semibold hover:bg-muted"><Upload className="h-4 w-4" /> Upload<input type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleQuestionImage(selected, file); e.currentTarget.value = ""; }} /></label></div>
-              {selected.question_image_url ? <img src={selected.question_image_url} alt={`Question ${selected.question_number ?? ""}`} className="mt-4 max-h-[520px] w-full rounded-xl border border-border object-contain" /> : <div className="mt-4 flex min-h-40 items-center justify-center rounded-xl border border-dashed border-border text-xs text-muted-foreground"><FileImage className="mr-2 h-4 w-4" />No question image uploaded</div>}
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <label className="text-sm font-semibold">
+                  iSkole Question No.
+                  <input
+                    type="number"
+                    min="1"
+                    value={selected.question_number ?? ""}
+                    onChange={(e) => updateQuestion(selected.id, {
+                      question_number: e.target.value ? Number(e.target.value) : null,
+                    })}
+                    className={inputClass}
+                    placeholder="Shown to students"
+                  />
+                </label>
+
+                <label className="text-sm font-semibold">
+                  Original Paper Q No.
+                  <input
+                    value={selected.paper_question_number ?? ""}
+                    onChange={(e) => updateQuestion(selected.id, {
+                      paper_question_number: e.target.value,
+                    })}
+                    className={inputClass}
+                    placeholder="Teacher reference"
+                  />
+                </label>
+
+                <label className="text-sm font-semibold">
+                  Paper Code
+                  <input
+                    value={selected.paper_code ?? ""}
+                    onChange={(e) => updateQuestion(selected.id, {
+                      paper_code: e.target.value,
+                    })}
+                    className={inputClass}
+                    placeholder="Optional"
+                  />
+                </label>
+
+                <label className="text-sm font-semibold">
+                  Marks
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.5"
+                    value={selected.marks}
+                    onChange={(e) => updateQuestion(selected.id, {
+                      marks: Number(e.target.value),
+                    })}
+                    className={inputClass}
+                  />
+                </label>
+              </div>
+
+              <div className="rounded-2xl border border-border p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-bold">Question Image</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Upload the complete question, including choices if it is an MCQ.
+                    </p>
+                  </div>
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-semibold hover:bg-muted">
+                    <Upload className="h-4 w-4" /> Upload
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) void handleQuestionImage(selected, file);
+                        e.currentTarget.value = "";
+                      }}
+                    />
+                  </label>
+                </div>
+
+                {selected.question_image_url ? (
+                  <img
+                    src={selected.question_image_url}
+                    alt={`Question ${selected.question_number ?? 1}`}
+                    className="mt-4 max-h-[560px] w-full rounded-xl border border-border object-contain"
+                  />
+                ) : (
+                  <div className="mt-4 flex h-36 items-center justify-center rounded-xl border border-dashed border-border text-xs text-muted-foreground">
+                    No question image uploaded
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-border p-4">
+                <h3 className="text-sm font-bold">Answer / Marking</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Store the answer or marking guidance for this question.
+                </p>
+
+                {page.page_type === "mcq" && (
+                  <label className="mt-4 block text-sm font-semibold">
+                    Correct Option
+                    <select
+                      value={selectedAnswer?.correct_option ?? ""}
+                      onChange={(e) => updateAnswer(selected.id, { correct_option: e.target.value || null })}
+                      className={inputClass}
+                    >
+                      <option value="">Select correct option</option>
+                      <option value="A">A</option>
+                      <option value="B">B</option>
+                      <option value="C">C</option>
+                      <option value="D">D</option>
+                    </select>
+                  </label>
+                )}
+
+                <label className="mt-4 block text-sm font-semibold">
+                  Answer / Explanation
+                  <textarea
+                    value={selectedAnswer?.answer_text ?? ""}
+                    onChange={(e) => updateAnswer(selected.id, { answer_text: e.target.value })}
+                    className="mt-2 min-h-28 w-full rounded-xl border border-input bg-background p-3 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary/10"
+                    placeholder={page.page_type === "mcq" ? "Optional explanation" : "Enter the answer or marking guidance"}
+                  />
+                </label>
+
+                <div className="mt-4 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold">Answer Image</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Optional solution/reference image.</p>
+                  </div>
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-semibold hover:bg-muted">
+                    <Upload className="h-4 w-4" /> Upload
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) void handleAnswerImage(selected, file);
+                        e.currentTarget.value = "";
+                      }}
+                    />
+                  </label>
+                </div>
+
+                {selectedAnswer?.answer_image_url && (
+                  <img
+                    src={selectedAnswer.answer_image_url}
+                    alt="Answer"
+                    className="mt-4 max-h-80 w-full rounded-xl border border-border object-contain"
+                  />
+                )}
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => void saveQuestion(selected)}
+                  disabled={saving}
+                  className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+                >
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  Save Question
+                </button>
+              </div>
             </div>
-
-            <div className="rounded-2xl border border-border p-4">
-              <div className="flex items-center justify-between gap-3"><div><h3 className="text-sm font-bold">Answer</h3><p className="mt-1 text-xs text-muted-foreground">For MCQ, select the correct option. For structured questions, enter or upload the answer.</p></div><label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-semibold hover:bg-muted"><Upload className="h-4 w-4" /> Answer Image<input type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleAnswerImage(selected, file); e.currentTarget.value = ""; }} /></label></div>
-              {page.page_type === "mcq" && <div className="mt-4"><label className="text-sm font-semibold">Correct Option<select value={selectedAnswer?.correct_option ?? ""} onChange={(e) => { const value = e.target.value; const existing = answers[selected.id]; if (existing) updateAnswer(selected.id, { correct_option: value }); else setAnswers((current) => ({ ...current, [selected.id]: { id: "", question_id: selected.id, answer_image_url: null, answer_text: null, correct_option: value } })); }} className={inputClass}><option value="">Select correct option</option><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option></select></label></div>}
-              <label className="mt-4 block text-sm font-semibold">Answer / Explanation<textarea value={selectedAnswer?.answer_text ?? ""} onChange={(e) => { const value = e.target.value; const existing = answers[selected.id]; if (existing) updateAnswer(selected.id, { answer_text: value }); else setAnswers((current) => ({ ...current, [selected.id]: { id: "", question_id: selected.id, answer_image_url: null, answer_text: value, correct_option: null } })); }} className="mt-2 min-h-28 w-full rounded-xl border border-input bg-background p-3 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary/10" placeholder={page.page_type === "mcq" ? "Optional explanation" : "Enter the answer or marking guidance"} /></label>
-              {selectedAnswer?.answer_image_url && <img src={selectedAnswer.answer_image_url} alt="Answer" className="mt-4 max-h-80 w-full rounded-xl border border-border object-contain" />}
-            </div>
-
-            <div className="flex justify-end"><button type="button" onClick={() => void saveQuestion(selected)} disabled={saving} className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save Question</button></div>
-          </div>}
+          )}
         </main>
       </div>
     </div>
