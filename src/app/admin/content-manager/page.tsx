@@ -12,62 +12,15 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-
 import { createClient } from "@/lib/supabase/client";
 
-type Curriculum = {
-  id: string;
-  name: string;
-  description: string | null;
-  is_active: boolean;
-};
-
-type Level = {
-  id: string;
-  curriculum_id: string;
-  name: string;
-  description: string | null;
-  is_active: boolean;
-};
-
-type Subject = {
-  id: string;
-  level_id: string;
-  name: string;
-  code: string | null;
-  description: string | null;
-  is_active: boolean;
-};
-
-type ContentNode = {
-  id: string;
-  subject_id: string | null;
-  parent_id: string | null;
-  name: string;
-  description: string | null;
-};
-
-type SearchCurriculum = {
-  id: string;
-  name: string;
-  description: string | null;
-};
-
-type SearchLevel = {
-  id: string;
-  curriculum_id: string;
-  name: string;
-  description: string | null;
-};
-
-type SearchSubject = {
-  id: string;
-  level_id: string;
-  name: string;
-  code: string | null;
-  description: string | null;
-};
-
+type Curriculum = { id: string; name: string; description: string | null; is_active: boolean };
+type Level = { id: string; curriculum_id: string; name: string; description: string | null; is_active: boolean };
+type Subject = { id: string; level_id: string; name: string; code: string | null; description: string | null; is_active: boolean };
+type ContentNode = { id: string; subject_id: string | null; parent_id: string | null; name: string; description: string | null };
+type SearchCurriculum = { id: string; name: string; description: string | null };
+type SearchLevel = { id: string; curriculum_id: string; name: string; description: string | null };
+type SearchSubject = { id: string; level_id: string; name: string; code: string | null; description: string | null };
 type SearchResult = {
   id: string;
   type: "curriculum" | "level" | "subject" | "content_node";
@@ -78,150 +31,92 @@ type SearchResult = {
   levelId?: string;
   subjectId?: string;
 };
-
 type EntityType = "curriculum" | "level" | "subject";
-
-type ModalState = {
-  type: EntityType;
-  mode: "create" | "edit";
-  id?: string;
-} | null;
+type ModalState = { type: EntityType; mode: "create" | "edit"; id?: string } | null;
 
 export default function ContentManagerPage() {
   const supabase = useMemo(() => createClient(), []);
-
   const [curriculums, setCurriculums] = useState<Curriculum[]>([]);
   const [levels, setLevels] = useState<Level[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
-
   const [selectedCurriculumId, setSelectedCurriculumId] = useState("");
   const [selectedLevelId, setSelectedLevelId] = useState("");
-
+  const [selectedSubjectId, setSelectedSubjectId] = useState("");
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
-
   const [loadingCurriculums, setLoadingCurriculums] = useState(true);
   const [loadingLevels, setLoadingLevels] = useState(false);
   const [loadingSubjects, setLoadingSubjects] = useState(false);
-
   const [modal, setModal] = useState<ModalState>(null);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    loadCurriculums();
-  }, []);
+  useEffect(() => { void loadCurriculums(); }, []);
 
   useEffect(() => {
     setSelectedLevelId("");
+    setSelectedSubjectId("");
     setLevels([]);
     setSubjects([]);
-
-    if (selectedCurriculumId) loadLevels(selectedCurriculumId);
+    if (selectedCurriculumId) void loadLevels(selectedCurriculumId);
   }, [selectedCurriculumId]);
 
   useEffect(() => {
+    setSelectedSubjectId("");
     setSubjects([]);
-    if (selectedLevelId) loadSubjects(selectedLevelId);
+    if (selectedLevelId) void loadSubjects(selectedLevelId);
   }, [selectedLevelId]);
 
   useEffect(() => {
     const term = search.trim();
-
     if (!term) {
       setSearchResults([]);
       setSearching(false);
       return;
     }
-
-    const timer = window.setTimeout(() => {
-      performGlobalSearch(term);
-    }, 250);
-
+    const timer = window.setTimeout(() => { void performGlobalSearch(term); }, 250);
     return () => window.clearTimeout(timer);
   }, [search]);
 
   async function loadCurriculums() {
     setLoadingCurriculums(true);
-    const { data, error } = await supabase
-      .from("curriculums")
-      .select("id, name, description, is_active")
-      .eq("is_active", true)
-      .order("name");
-
-    if (error) setError(error.message);
-    else setCurriculums(data ?? []);
+    const { data, error } = await supabase.from("curriculums").select("id, name, description, is_active").eq("is_active", true).order("name");
+    if (error) setError(error.message); else setCurriculums(data ?? []);
     setLoadingCurriculums(false);
   }
 
   async function loadLevels(curriculumId: string) {
     setLoadingLevels(true);
-    const { data, error } = await supabase
-      .from("levels")
-      .select("id, curriculum_id, name, description, is_active")
-      .eq("curriculum_id", curriculumId)
-      .eq("is_active", true)
-      .order("name");
-
-    if (error) setError(error.message);
-    else setLevels(data ?? []);
+    const { data, error } = await supabase.from("levels").select("id, curriculum_id, name, description, is_active").eq("curriculum_id", curriculumId).eq("is_active", true).order("name");
+    if (error) setError(error.message); else setLevels(data ?? []);
     setLoadingLevels(false);
   }
 
   async function loadSubjects(levelId: string) {
     setLoadingSubjects(true);
-    const { data, error } = await supabase
-      .from("subjects")
-      .select("id, level_id, name, code, description, is_active")
-      .eq("level_id", levelId)
-      .eq("is_active", true)
-      .order("name");
-
-    if (error) setError(error.message);
-    else setSubjects(data ?? []);
+    const { data, error } = await supabase.from("subjects").select("id, level_id, name, code, description, is_active").eq("level_id", levelId).eq("is_active", true).order("name");
+    if (error) setError(error.message); else setSubjects(data ?? []);
     setLoadingSubjects(false);
   }
 
   async function performGlobalSearch(term: string) {
     setSearching(true);
     setError("");
-
     const pattern = `%${term}%`;
 
-    const [curriculumQuery, levelQuery, subjectQuery, nodeQuery] =
-      await Promise.all([
-        supabase
-          .from("curriculums")
-          .select("id, name, description")
-          .eq("is_active", true)
-          .or(`name.ilike.${pattern},description.ilike.${pattern}`),
-        supabase
-          .from("levels")
-          .select("id, curriculum_id, name, description")
-          .eq("is_active", true)
-          .or(`name.ilike.${pattern},description.ilike.${pattern}`),
-        supabase
-          .from("subjects")
-          .select("id, level_id, name, code, description")
-          .eq("is_active", true)
-          .or(
-            `name.ilike.${pattern},code.ilike.${pattern},description.ilike.${pattern}`,
-          ),
-        supabase
-          .from("content_nodes")
-          .select("id, subject_id, parent_id, name, description")
-          .eq("is_active", true)
-          .or(`name.ilike.${pattern},description.ilike.${pattern}`),
-      ]);
+    const [curriculumSearch, levelSearch, subjectSearch, nodeSearch, allCurriculumsQuery, allLevelsQuery, allSubjectsQuery] = await Promise.all([
+      supabase.from("curriculums").select("id, name, description").eq("is_active", true).or(`name.ilike.${pattern},description.ilike.${pattern}`),
+      supabase.from("levels").select("id, curriculum_id, name, description").eq("is_active", true).or(`name.ilike.${pattern},description.ilike.${pattern}`),
+      supabase.from("subjects").select("id, level_id, name, code, description").eq("is_active", true).or(`name.ilike.${pattern},code.ilike.${pattern},description.ilike.${pattern}`),
+      supabase.from("content_nodes").select("id, subject_id, parent_id, name, description").eq("is_active", true).or(`name.ilike.${pattern},description.ilike.${pattern}`),
+      supabase.from("curriculums").select("id, name"),
+      supabase.from("levels").select("id, curriculum_id, name"),
+      supabase.from("subjects").select("id, level_id, name"),
+    ]);
 
-    const firstError =
-      curriculumQuery.error ??
-      levelQuery.error ??
-      subjectQuery.error ??
-      nodeQuery.error;
-
+    const firstError = curriculumSearch.error ?? levelSearch.error ?? subjectSearch.error ?? nodeSearch.error ?? allCurriculumsQuery.error ?? allLevelsQuery.error ?? allSubjectsQuery.error;
     if (firstError) {
       setError(firstError.message);
       setSearchResults([]);
@@ -229,272 +124,149 @@ export default function ContentManagerPage() {
       return;
     }
 
-    const curriculumData = (curriculumQuery.data ?? []) as SearchCurriculum[];
-    const levelData = (levelQuery.data ?? []) as SearchLevel[];
-    const subjectData = (subjectQuery.data ?? []) as SearchSubject[];
-    const nodeData = (nodeQuery.data ?? []) as ContentNode[];
+    const curriculumData = (curriculumSearch.data ?? []) as SearchCurriculum[];
+    const levelData = (levelSearch.data ?? []) as SearchLevel[];
+    const subjectData = (subjectSearch.data ?? []) as SearchSubject[];
+    const nodeData = (nodeSearch.data ?? []) as ContentNode[];
+    const allCurriculums = allCurriculumsQuery.data ?? [];
+    const allLevels = allLevelsQuery.data ?? [];
+    const allSubjects = allSubjectsQuery.data ?? [];
 
-    const curriculumMap = new Map<string, SearchCurriculum>(
-      curriculumData.map((x: SearchCurriculum) => [x.id, x]),
-    );
-    const levelMap = new Map<string, SearchLevel>(
-      levelData.map((x: SearchLevel) => [x.id, x]),
-    );
-    const subjectMap = new Map<string, SearchSubject>(
-      subjectData.map((x: SearchSubject) => [x.id, x]),
-    );
+    const curriculumMap = new Map<string, { id: string; name: string }>(allCurriculums.map((item) => [item.id, item]));
+    const levelMap = new Map<string, { id: string; curriculum_id: string; name: string }>(allLevels.map((item) => [item.id, item]));
+    const subjectMap = new Map<string, { id: string; level_id: string; name: string }>(allSubjects.map((item) => [item.id, item]));
 
     const results: SearchResult[] = [];
 
-    curriculumData.forEach((item) => {
-      results.push({
-        id: item.id,
-        type: "curriculum",
-        name: item.name,
-        description: item.description,
-        path: item.name,
-      });
-    });
+    curriculumData.forEach((item) => results.push({ id: item.id, type: "curriculum", name: item.name, description: item.description, path: item.name, curriculumId: item.id }));
 
     levelData.forEach((item) => {
       const curriculum = curriculumMap.get(item.curriculum_id);
-      results.push({
-        id: item.id,
-        type: "level",
-        name: item.name,
-        description: item.description,
-        curriculumId: item.curriculum_id,
-        path: [curriculum?.name, item.name].filter(Boolean).join(" → "),
-      });
+      results.push({ id: item.id, type: "level", name: item.name, description: item.description, curriculumId: item.curriculum_id, levelId: item.id, path: [curriculum?.name, item.name].filter(Boolean).join(" → ") });
     });
 
     subjectData.forEach((item) => {
       const level = levelMap.get(item.level_id);
-      const curriculum = level
-        ? curriculumMap.get(level.curriculum_id)
-        : undefined;
-      results.push({
-        id: item.id,
-        type: "subject",
-        name: item.name,
-        description: item.description,
-        curriculumId: level?.curriculum_id,
-        levelId: item.level_id,
-        path: [curriculum?.name, level?.name, item.name]
-          .filter(Boolean)
-          .join(" → "),
-      });
+      const curriculum = level ? curriculumMap.get(level.curriculum_id) : undefined;
+      results.push({ id: item.id, type: "subject", name: item.name, description: item.description, curriculumId: level?.curriculum_id, levelId: item.level_id, subjectId: item.id, path: [curriculum?.name, level?.name, item.name].filter(Boolean).join(" → ") });
     });
 
     nodeData.forEach((item) => {
-      const subject = item.subject_id
-        ? subjectMap.get(item.subject_id)
-        : undefined;
-      const level = subject
-        ? levelMap.get(subject.level_id)
-        : undefined;
-      const curriculum = level
-        ? curriculumMap.get(level.curriculum_id)
-        : undefined;
-
-      results.push({
-        id: item.id,
-        type: "content_node",
-        name: item.name,
-        description: item.description,
-        curriculumId: level?.curriculum_id,
-        levelId: subject?.level_id,
-        subjectId: item.subject_id ?? undefined,
-        path: [curriculum?.name, level?.name, subject?.name, item.name]
-          .filter(Boolean)
-          .join(" → "),
-      });
+      const subject = item.subject_id ? subjectMap.get(item.subject_id) : undefined;
+      const level = subject ? levelMap.get(subject.level_id) : undefined;
+      const curriculum = level ? curriculumMap.get(level.curriculum_id) : undefined;
+      results.push({ id: item.id, type: "content_node", name: item.name, description: item.description, curriculumId: level?.curriculum_id, levelId: subject?.level_id, subjectId: item.subject_id ?? undefined, path: [curriculum?.name, level?.name, subject?.name, item.name].filter(Boolean).join(" → ") });
     });
 
     setSearchResults(results);
     setSearching(false);
   }
 
-  function openCreate(type: EntityType) {
-    setError("");
-    setModal({ type, mode: "create" });
-  }
+  function openCreate(type: EntityType) { setError(""); setModal({ type, mode: "create" }); }
+  function openEdit(type: EntityType, id: string) { setError(""); setModal({ type, mode: "edit", id }); }
 
-  function openEdit(type: EntityType, id: string) {
-    setError("");
-    setModal({ type, mode: "edit", id });
-  }
-
-  async function saveEntity(values: {
-    name: string;
-    description: string;
-    code?: string;
-  }) {
+  async function saveEntity(values: { name: string; description: string; code?: string }) {
     if (!modal) return;
     setSaving(true);
     setError("");
-
     try {
       if (modal.type === "curriculum") {
-        const query =
-          modal.mode === "create"
-            ? supabase.from("curriculums").insert({
-                name: values.name,
-                description: values.description || null,
-                is_active: true,
-              })
-            : supabase
-                .from("curriculums")
-                .update({
-                  name: values.name,
-                  description: values.description || null,
-                })
-                .eq("id", modal.id!);
+        const query = modal.mode === "create"
+          ? supabase.from("curriculums").insert({ name: values.name, description: values.description || null, is_active: true })
+          : supabase.from("curriculums").update({ name: values.name, description: values.description || null }).eq("id", modal.id!);
         const { error } = await query;
         if (error) throw new Error(error.message);
         await loadCurriculums();
       }
-
       if (modal.type === "level") {
-        if (!selectedCurriculumId)
-          throw new Error("Select a curriculum first.");
-        const query =
-          modal.mode === "create"
-            ? supabase.from("levels").insert({
-                curriculum_id: selectedCurriculumId,
-                name: values.name,
-                description: values.description || null,
-                is_active: true,
-              })
-            : supabase
-                .from("levels")
-                .update({
-                  name: values.name,
-                  description: values.description || null,
-                })
-                .eq("id", modal.id!);
+        if (!selectedCurriculumId) throw new Error("Select a curriculum first.");
+        const query = modal.mode === "create"
+          ? supabase.from("levels").insert({ curriculum_id: selectedCurriculumId, name: values.name, description: values.description || null, is_active: true })
+          : supabase.from("levels").update({ name: values.name, description: values.description || null }).eq("id", modal.id!);
         const { error } = await query;
         if (error) throw new Error(error.message);
         await loadLevels(selectedCurriculumId);
       }
-
       if (modal.type === "subject") {
         if (!selectedLevelId) throw new Error("Select a level first.");
-        const query =
-          modal.mode === "create"
-            ? supabase.from("subjects").insert({
-                level_id: selectedLevelId,
-                name: values.name,
-                code: values.code?.trim() || null,
-                description: values.description || null,
-                is_active: true,
-              })
-            : supabase
-                .from("subjects")
-                .update({
-                  name: values.name,
-                  code: values.code?.trim() || null,
-                  description: values.description || null,
-                })
-                .eq("id", modal.id!);
+        const query = modal.mode === "create"
+          ? supabase.from("subjects").insert({ level_id: selectedLevelId, name: values.name, code: values.code?.trim() || null, description: values.description || null, is_active: true })
+          : supabase.from("subjects").update({ name: values.name, code: values.code?.trim() || null, description: values.description || null }).eq("id", modal.id!);
         const { error } = await query;
         if (error) throw new Error(error.message);
         await loadSubjects(selectedLevelId);
       }
-
       setModal(null);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Something went wrong.",
-      );
-    } finally {
-      setSaving(false);
-    }
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally { setSaving(false); }
   }
 
   async function deleteEntity(type: EntityType, id: string) {
-    const label =
-      type === "curriculum"
-        ? "curriculum"
-        : type === "level"
-          ? "level"
-          : "subject";
-    if (
-      !window.confirm(
-        `Deactivate this ${label}? It will no longer appear in the active list.`,
-      )
-    )
-      return;
-
+    const label = type === "curriculum" ? "curriculum" : type === "level" ? "level" : "subject";
+    if (!window.confirm(`Deactivate this ${label}? It will no longer appear in the active list.`)) return;
     setDeletingId(id);
     setError("");
-
     try {
-      const table =
-        type === "curriculum"
-          ? "curriculums"
-          : type === "level"
-            ? "levels"
-            : "subjects";
-      const { error } = await supabase
-        .from(table)
-        .update({ is_active: false })
-        .eq("id", id);
+      const table = type === "curriculum" ? "curriculums" : type === "level" ? "levels" : "subjects";
+      const { error } = await supabase.from(table).update({ is_active: false }).eq("id", id);
       if (error) throw new Error(error.message);
-
       if (type === "curriculum") {
         if (selectedCurriculumId === id) setSelectedCurriculumId("");
         await loadCurriculums();
       } else if (type === "level") {
         if (selectedLevelId === id) setSelectedLevelId("");
         if (selectedCurriculumId) await loadLevels(selectedCurriculumId);
-      } else if (selectedLevelId) {
-        await loadSubjects(selectedLevelId);
+      } else {
+        if (selectedSubjectId === id) setSelectedSubjectId("");
+        if (selectedLevelId) await loadSubjects(selectedLevelId);
       }
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Unable to deactivate item.",
-      );
-    } finally {
-      setDeletingId(null);
-    }
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to deactivate item."); }
+    finally { setDeletingId(null); }
   }
 
-  function openSearchResult(result: SearchResult) {
-    if (result.type === "curriculum") {
-      setSelectedCurriculumId(result.id);
-      setSelectedLevelId("");
-    } else if (result.type === "level") {
-      setSelectedCurriculumId(result.curriculumId ?? "");
-      setSelectedLevelId(result.id);
-    } else {
-      setSelectedCurriculumId(result.curriculumId ?? "");
-      setSelectedLevelId(result.levelId ?? "");
-    }
-
+  async function openSearchResult(result: SearchResult) {
     setSearch("");
     setSearchResults([]);
+
+    if (result.type === "curriculum") {
+      setSelectedSubjectId("");
+      setSelectedCurriculumId(result.curriculumId ?? result.id);
+      setSelectedLevelId("");
+      return;
+    }
+
+    if (result.type === "level") {
+      const curriculumId = result.curriculumId ?? "";
+      setSelectedSubjectId("");
+      setSelectedCurriculumId(curriculumId);
+      setSelectedLevelId("");
+      if (curriculumId) await loadLevels(curriculumId);
+      setSelectedLevelId(result.levelId ?? result.id);
+      return;
+    }
+
+    const curriculumId = result.curriculumId ?? "";
+    const levelId = result.levelId ?? "";
+    const subjectId = result.subjectId ?? (result.type === "subject" ? result.id : "");
+
+    setSelectedCurriculumId(curriculumId);
+    setSelectedLevelId("");
+    setSelectedSubjectId("");
+
+    if (curriculumId) await loadLevels(curriculumId);
+    setSelectedLevelId(levelId);
+    if (levelId) await loadSubjects(levelId);
+    setSelectedSubjectId(subjectId);
   }
 
-  const filteredCurriculums = curriculums.filter((item) =>
-    item.name.toLowerCase().includes(search.toLowerCase()),
-  );
-  const filteredLevels = levels.filter((item) =>
-    item.name.toLowerCase().includes(search.toLowerCase()),
-  );
+  const filteredCurriculums = curriculums.filter((item) => item.name.toLowerCase().includes(search.toLowerCase()));
+  const filteredLevels = levels.filter((item) => item.name.toLowerCase().includes(search.toLowerCase()));
   const filteredSubjects = subjects.filter((item) => {
     const query = search.toLowerCase();
-    return (
-      item.name.toLowerCase().includes(query) ||
-      !!item.code?.toLowerCase().includes(query)
-    );
+    return item.name.toLowerCase().includes(query) || !!item.code?.toLowerCase().includes(query);
   });
-
-  const selectedCurriculum = curriculums.find(
-    (item) => item.id === selectedCurriculumId,
-  );
+  const selectedCurriculum = curriculums.find((item) => item.id === selectedCurriculumId);
   const selectedLevel = levels.find((item) => item.id === selectedLevelId);
 
   return (
@@ -502,568 +274,76 @@ export default function ContentManagerPage() {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-sm font-semibold text-primary">Administration</p>
-          <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-foreground">
-            Content Manager
-          </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Manage curricula, levels, and subjects.
-          </p>
+          <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-foreground">Content Manager</h1>
+          <p className="mt-2 text-sm text-muted-foreground">Manage curricula, levels, and subjects.</p>
         </div>
-
         <div className="relative w-full lg:w-80">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="search"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search all content..."
-            autoComplete="off"
-            className="h-10 w-full rounded-xl border border-input bg-card pl-9 pr-4 text-sm outline-none transition placeholder:text-muted-foreground/60 focus:border-primary focus:ring-4 focus:ring-primary/10"
-          />
+          <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search all content..." autoComplete="off" className="h-10 w-full rounded-xl border border-input bg-card pl-9 pr-4 text-sm outline-none transition placeholder:text-muted-foreground/60 focus:border-primary focus:ring-4 focus:ring-primary/10" />
         </div>
       </div>
 
-      {error && (
-        <div className="flex items-start justify-between gap-4 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-          <span>{error}</span>
-          <button
-            type="button"
-            onClick={() => setError("")}
-            aria-label="Dismiss error"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      )}
+      {error && <div className="flex items-start justify-between gap-4 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive"><span>{error}</span><button type="button" onClick={() => setError("")} aria-label="Dismiss error"><X className="h-4 w-4" /></button></div>}
 
       {search.trim() ? (
-        <GlobalSearchResults
-          results={searchResults}
-          searching={searching}
-          onSelect={openSearchResult}
-          onClear={() => {
-            setSearch("");
-            setSearchResults([]);
-          }}
-        />
+        <GlobalSearchResults results={searchResults} searching={searching} onSelect={openSearchResult} onClear={() => { setSearch(""); setSearchResults([]); }} />
       ) : (
         <>
           <div className="grid gap-4 lg:grid-cols-3">
-            <ContentColumn
-              title="Curriculums"
-              description="Choose a curriculum"
-              icon={BookOpen}
-              onAdd={() => openCreate("curriculum")}
-            >
-              {loadingCurriculums ? (
-                <LoadingState />
-              ) : filteredCurriculums.length === 0 ? (
-                <EmptyState
-                  label="No curriculums"
-                  onAdd={() => openCreate("curriculum")}
-                />
-              ) : (
-                filteredCurriculums.map((curriculum) => (
-                  <ListItem
-                    key={curriculum.id}
-                    name={curriculum.name}
-                    description={curriculum.description}
-                    selected={selectedCurriculumId === curriculum.id}
-                    onClick={() => setSelectedCurriculumId(curriculum.id)}
-                    onEdit={() => openEdit("curriculum", curriculum.id)}
-                    onDelete={() =>
-                      deleteEntity("curriculum", curriculum.id)
-                    }
-                    deleting={deletingId === curriculum.id}
-                  />
-                ))
-              )}
+            <ContentColumn title="Curriculums" description="Choose a curriculum" icon={BookOpen} onAdd={() => openCreate("curriculum")}>
+              {loadingCurriculums ? <LoadingState /> : filteredCurriculums.length === 0 ? <EmptyState label="No curriculums" onAdd={() => openCreate("curriculum")} /> : filteredCurriculums.map((curriculum) => <ListItem key={curriculum.id} name={curriculum.name} description={curriculum.description} selected={selectedCurriculumId === curriculum.id} onClick={() => setSelectedCurriculumId(curriculum.id)} onEdit={() => openEdit("curriculum", curriculum.id)} onDelete={() => deleteEntity("curriculum", curriculum.id)} deleting={deletingId === curriculum.id} />)}
             </ContentColumn>
-
-            <ContentColumn
-              title="Levels"
-              description={
-                selectedCurriculum
-                  ? `Within ${selectedCurriculum.name}`
-                  : "Select a curriculum first"
-              }
-              icon={Layers3}
-              onAdd={() => openCreate("level")}
-              disabled={!selectedCurriculumId}
-            >
-              {!selectedCurriculumId ? (
-                <SelectParentState label="Select a curriculum" />
-              ) : loadingLevels ? (
-                <LoadingState />
-              ) : filteredLevels.length === 0 ? (
-                <EmptyState
-                  label="No levels"
-                  onAdd={() => openCreate("level")}
-                />
-              ) : (
-                filteredLevels.map((level) => (
-                  <ListItem
-                    key={level.id}
-                    name={level.name}
-                    description={level.description}
-                    selected={selectedLevelId === level.id}
-                    onClick={() => setSelectedLevelId(level.id)}
-                    onEdit={() => openEdit("level", level.id)}
-                    onDelete={() => deleteEntity("level", level.id)}
-                    deleting={deletingId === level.id}
-                  />
-                ))
-              )}
+            <ContentColumn title="Levels" description={selectedCurriculum ? `Within ${selectedCurriculum.name}` : "Select a curriculum first"} icon={Layers3} onAdd={() => openCreate("level")} disabled={!selectedCurriculumId}>
+              {!selectedCurriculumId ? <SelectParentState label="Select a curriculum" /> : loadingLevels ? <LoadingState /> : filteredLevels.length === 0 ? <EmptyState label="No levels" onAdd={() => openCreate("level")} /> : filteredLevels.map((level) => <ListItem key={level.id} name={level.name} description={level.description} selected={selectedLevelId === level.id} onClick={() => setSelectedLevelId(level.id)} onEdit={() => openEdit("level", level.id)} onDelete={() => deleteEntity("level", level.id)} deleting={deletingId === level.id} />)}
             </ContentColumn>
-
-            <ContentColumn
-              title="Subjects"
-              description={
-                selectedLevel
-                  ? `Within ${selectedLevel.name}`
-                  : "Select a level first"
-              }
-              icon={BookOpen}
-              onAdd={() => openCreate("subject")}
-              disabled={!selectedLevelId}
-            >
-              {!selectedLevelId ? (
-                <SelectParentState label="Select a level" />
-              ) : loadingSubjects ? (
-                <LoadingState />
-              ) : filteredSubjects.length === 0 ? (
-                <EmptyState
-                  label="No subjects"
-                  onAdd={() => openCreate("subject")}
-                />
-              ) : (
-                filteredSubjects.map((subject) => (
-                  <ListItem
-                    key={subject.id}
-                    name={subject.name}
-                    description={
-                      subject.code
-                        ? `${subject.code}${
-                            subject.description
-                              ? ` · ${subject.description}`
-                              : ""
-                          }`
-                        : subject.description
-                    }
-                    selected={selectedLevelId === subject.level_id}
-                    onClick={() => {}}
-                    onEdit={() => openEdit("subject", subject.id)}
-                    onDelete={() => deleteEntity("subject", subject.id)}
-                    deleting={deletingId === subject.id}
-                  />
-                ))
-              )}
+            <ContentColumn title="Subjects" description={selectedLevel ? `Within ${selectedLevel.name}` : "Select a level first"} icon={BookOpen} onAdd={() => openCreate("subject")} disabled={!selectedLevelId}>
+              {!selectedLevelId ? <SelectParentState label="Select a level" /> : loadingSubjects ? <LoadingState /> : filteredSubjects.length === 0 ? <EmptyState label="No subjects" onAdd={() => openCreate("subject")} /> : filteredSubjects.map((subject) => <ListItem key={subject.id} name={subject.name} description={subject.code ? `${subject.code}${subject.description ? ` · ${subject.description}` : ""}` : subject.description} selected={selectedSubjectId === subject.id} onClick={() => setSelectedSubjectId(subject.id)} onEdit={() => openEdit("subject", subject.id)} onDelete={() => deleteEntity("subject", subject.id)} deleting={deletingId === subject.id} />)}
             </ContentColumn>
           </div>
 
-          {(selectedCurriculum || selectedLevel) && (
-            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <span className="font-semibold text-foreground">Structure:</span>
-              {selectedCurriculum && (
-                <>
-                  <span>{selectedCurriculum.name}</span>
-                  {selectedLevel && (
-                    <ChevronDown className="h-3 w-3 -rotate-90" />
-                  )}
-                </>
-              )}
-              {selectedLevel && (
-                <span className="font-semibold text-foreground">
-                  {selectedLevel.name}
-                </span>
-              )}
-            </div>
-          )}
+          {(selectedCurriculum || selectedLevel || selectedSubjectId) && <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground">Structure:</span>
+            {selectedCurriculum && <><span>{selectedCurriculum.name}</span>{(selectedLevel || selectedSubjectId) && <ChevronDown className="h-3 w-3 -rotate-90" />}</>}
+            {selectedLevel && <><span>{selectedLevel.name}</span>{selectedSubjectId && <ChevronDown className="h-3 w-3 -rotate-90" />}</>}
+            {selectedSubjectId && <span className="font-semibold text-foreground">{subjects.find((item) => item.id === selectedSubjectId)?.name ?? "Subject"}</span>}
+          </div>}
         </>
       )}
 
-      {modal && (
-        <EntityModal
-          modal={modal}
-          curriculums={curriculums}
-          levels={levels}
-          subjects={subjects}
-          saving={saving}
-          onClose={() => setModal(null)}
-          onSave={saveEntity}
-        />
-      )}
+      {modal && <EntityModal modal={modal} curriculums={curriculums} levels={levels} subjects={subjects} saving={saving} onClose={() => setModal(null)} onSave={saveEntity} />}
     </div>
   );
 }
 
-function GlobalSearchResults({
-  results,
-  searching,
-  onSelect,
-  onClear,
-}: {
-  results: SearchResult[];
-  searching: boolean;
-  onSelect: (result: SearchResult) => void;
-  onClear: () => void;
-}) {
-  const labels: Record<SearchResult["type"], string> = {
-    curriculum: "Curriculum",
-    level: "Level",
-    subject: "Subject",
-    content_node: "Content",
-  };
-
-  return (
-    <section className="overflow-hidden rounded-2xl border border-border bg-card">
-      <div className="flex items-center justify-between border-b border-border px-5 py-4">
-        <div>
-          <h2 className="text-sm font-bold text-foreground">Search results</h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {searching ? "Searching all content..." : `${results.length} result${results.length === 1 ? "" : "s"}`}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onClear}
-          className="text-xs font-semibold text-muted-foreground hover:text-foreground"
-        >
-          Clear
-        </button>
-      </div>
-
-      <div className="p-3">
-        {searching ? (
-          <LoadingState />
-        ) : results.length === 0 ? (
-          <div className="flex min-h-[220px] flex-col items-center justify-center text-center">
-            <Search className="h-5 w-5 text-muted-foreground" />
-            <p className="mt-3 text-sm font-semibold text-foreground">No matching content</p>
-            <p className="mt-1 text-xs text-muted-foreground">Try a different name, code, or keyword.</p>
-          </div>
-        ) : (
-          results.map((result) => (
-            <button
-              key={`${result.type}-${result.id}`}
-              type="button"
-              onClick={() => onSelect(result)}
-              className="group flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-muted/60"
-            >
-              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                {result.type === "level" ? (
-                  <Layers3 className="h-4 w-4" />
-                ) : (
-                  <BookOpen className="h-4 w-4" />
-                )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="truncate text-sm font-semibold text-foreground">{result.name}</p>
-                  <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">
-                    {labels[result.type]}
-                  </span>
-                </div>
-                <p className="mt-1 truncate text-xs text-muted-foreground">{result.path}</p>
-                {result.description && (
-                  <p className="mt-0.5 truncate text-[11px] text-muted-foreground/80">{result.description}</p>
-                )}
-              </div>
-              <ChevronDown className="mt-2 h-4 w-4 shrink-0 -rotate-90 text-muted-foreground transition group-hover:text-primary" />
-            </button>
-          ))
-        )}
-      </div>
-    </section>
-  );
+function GlobalSearchResults({ results, searching, onSelect, onClear }: { results: SearchResult[]; searching: boolean; onSelect: (result: SearchResult) => void; onClear: () => void }) {
+  const labels: Record<SearchResult["type"], string> = { curriculum: "Curriculum", level: "Level", subject: "Subject", content_node: "Content" };
+  return <section className="overflow-hidden rounded-2xl border border-border bg-card">
+    <div className="flex items-center justify-between border-b border-border px-5 py-4"><div><h2 className="text-sm font-bold text-foreground">Search results</h2><p className="mt-1 text-xs text-muted-foreground">{searching ? "Searching all content..." : `${results.length} result${results.length === 1 ? "" : "s"}`}</p></div><button type="button" onClick={onClear} className="text-xs font-semibold text-muted-foreground hover:text-foreground">Clear</button></div>
+    <div className="p-3">{searching ? <LoadingState /> : results.length === 0 ? <div className="flex min-h-[220px] flex-col items-center justify-center text-center"><Search className="h-5 w-5 text-muted-foreground" /><p className="mt-3 text-sm font-semibold text-foreground">No matching content</p><p className="mt-1 text-xs text-muted-foreground">Try a different name, code, or keyword.</p></div> : results.map((result) => <button key={`${result.type}-${result.id}`} type="button" onClick={() => onSelect(result)} className="group flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-muted/60">
+      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">{result.type === "level" ? <Layers3 className="h-4 w-4" /> : <BookOpen className="h-4 w-4" />}</div>
+      <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><p className="truncate text-sm font-semibold text-foreground">{result.name}</p><span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">{labels[result.type]}</span></div><p className="mt-1 truncate text-xs font-medium text-muted-foreground">{result.path}</p>{result.description && <p className="mt-0.5 truncate text-[11px] text-muted-foreground/80">{result.description}</p>}</div><ChevronDown className="mt-2 h-4 w-4 shrink-0 -rotate-90 text-muted-foreground transition group-hover:text-primary" />
+    </button>)}</div>
+  </section>;
 }
 
-function ContentColumn({
-  title,
-  description,
-  icon: Icon,
-  onAdd,
-  disabled = false,
-  children,
-}: {
-  title: string;
-  description: string;
-  icon: React.ComponentType<{ className?: string }>;
-  onAdd: () => void;
-  disabled?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="flex min-h-[480px] flex-col overflow-hidden rounded-2xl border border-border bg-card">
-      <div className="flex items-start justify-between border-b border-border p-5">
-        <div className="flex min-w-0 items-start gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <Icon className="h-4 w-4" />
-          </div>
-          <div className="min-w-0">
-            <h2 className="text-sm font-bold text-foreground">{title}</h2>
-            <p className="mt-1 truncate text-xs text-muted-foreground">{description}</p>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={onAdd}
-          disabled={disabled}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-primary/10 hover:text-primary disabled:pointer-events-none disabled:opacity-30"
-          aria-label={`Add ${title}`}
-        >
-          <Plus className="h-4 w-4" />
-        </button>
-      </div>
-      <div className="flex-1 overflow-y-auto p-3">{children}</div>
-    </section>
-  );
+function ContentColumn({ title, description, icon: Icon, onAdd, disabled = false, children }: { title: string; description: string; icon: React.ComponentType<{ className?: string }>; onAdd: () => void; disabled?: boolean; children: React.ReactNode }) {
+  return <section className="flex min-h-[480px] flex-col overflow-hidden rounded-2xl border border-border bg-card"><div className="flex items-start justify-between border-b border-border p-5"><div className="flex min-w-0 items-start gap-3"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Icon className="h-4 w-4" /></div><div className="min-w-0"><h2 className="text-sm font-bold text-foreground">{title}</h2><p className="mt-1 truncate text-xs text-muted-foreground">{description}</p></div></div><button type="button" onClick={onAdd} disabled={disabled} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-primary/10 hover:text-primary disabled:pointer-events-none disabled:opacity-30" aria-label={`Add ${title}`}><Plus className="h-4 w-4" /></button></div><div className="flex-1 overflow-y-auto p-3">{children}</div></section>;
 }
 
-function ListItem({
-  name,
-  description,
-  selected,
-  onClick,
-  onEdit,
-  onDelete,
-  deleting,
-}: {
-  name: string;
-  description?: string | null;
-  selected: boolean;
-  onClick: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-  deleting: boolean;
-}) {
-  return (
-    <div
-      className={[
-        "group mb-1 flex items-center gap-2 rounded-xl border px-3 py-2.5 transition",
-        selected
-          ? "border-primary/20 bg-primary/5"
-          : "border-transparent hover:border-border hover:bg-muted/50",
-      ].join(" ")}
-    >
-      <button type="button" onClick={onClick} className="min-w-0 flex-1 text-left">
-        <p className="truncate text-sm font-semibold text-foreground">{name}</p>
-        {description && (
-          <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{description}</p>
-        )}
-      </button>
-      <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition group-hover:opacity-100">
-        <button
-          type="button"
-          onClick={onEdit}
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-background hover:text-primary"
-          aria-label={`Edit ${name}`}
-        >
-          <Edit3 className="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          onClick={onDelete}
-          disabled={deleting}
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/5 hover:text-destructive disabled:opacity-50"
-          aria-label={`Delete ${name}`}
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
-      </div>
-      {selected && <Check className="h-4 w-4 shrink-0 text-primary" />}
-    </div>
-  );
+function ListItem({ name, description, selected, onClick, onEdit, onDelete, deleting }: { name: string; description?: string | null; selected: boolean; onClick: () => void; onEdit: () => void; onDelete: () => void; deleting: boolean }) {
+  return <div className={["group mb-1 flex items-center gap-2 rounded-xl border px-3 py-2.5 transition", selected ? "border-primary/20 bg-primary/5" : "border-transparent hover:border-border hover:bg-muted/50"].join(" ")}><button type="button" onClick={onClick} className="min-w-0 flex-1 text-left"><p className="truncate text-sm font-semibold text-foreground">{name}</p>{description && <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{description}</p>}</button><div className="flex shrink-0 items-center gap-0.5 opacity-0 transition group-hover:opacity-100"><button type="button" onClick={onEdit} className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-background hover:text-primary" aria-label={`Edit ${name}`}><Edit3 className="h-3.5 w-3.5" /></button><button type="button" onClick={onDelete} disabled={deleting} className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/5 hover:text-destructive disabled:opacity-50" aria-label={`Delete ${name}`}><Trash2 className="h-3.5 w-3.5" /></button></div>{selected && <Check className="h-4 w-4 shrink-0 text-primary" />}</div>;
 }
 
-function LoadingState() {
-  return (
-    <div className="space-y-2 p-1">
-      {[1, 2, 3].map((item) => (
-        <div key={item} className="h-14 animate-pulse rounded-xl bg-muted" />
-      ))}
-    </div>
-  );
-}
+function LoadingState() { return <div className="space-y-2 p-1">{[1, 2, 3].map((item) => <div key={item} className="h-14 animate-pulse rounded-xl bg-muted" />)}</div>; }
+function EmptyState({ label, onAdd }: { label: string; onAdd: () => void }) { return <div className="flex h-full min-h-[300px] flex-col items-center justify-center text-center"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-muted-foreground"><BookOpen className="h-4 w-4" /></div><p className="mt-3 text-sm font-semibold text-foreground">{label}</p><button type="button" onClick={onAdd} className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline"><Plus className="h-3.5 w-3.5" />Add one</button></div>; }
+function SelectParentState({ label }: { label: string }) { return <div className="flex h-full min-h-[300px] items-center justify-center text-center"><div><div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-muted-foreground"><ChevronDown className="h-4 w-4" /></div><p className="mt-3 text-xs font-semibold text-muted-foreground">{label}</p></div></div>; }
 
-function EmptyState({
-  label,
-  onAdd,
-}: {
-  label: string;
-  onAdd: () => void;
-}) {
-  return (
-    <div className="flex h-full min-h-[300px] flex-col items-center justify-center text-center">
-      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-        <BookOpen className="h-4 w-4" />
-      </div>
-      <p className="mt-3 text-sm font-semibold text-foreground">{label}</p>
-      <button
-        type="button"
-        onClick={onAdd}
-        className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline"
-      >
-        <Plus className="h-3.5 w-3.5" />
-        Add one
-      </button>
-    </div>
-  );
-}
-
-function SelectParentState({ label }: { label: string }) {
-  return (
-    <div className="flex h-full min-h-[300px] items-center justify-center text-center">
-      <div>
-        <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-          <ChevronDown className="h-4 w-4" />
-        </div>
-        <p className="mt-3 text-xs font-semibold text-muted-foreground">{label}</p>
-      </div>
-    </div>
-  );
-}
-
-function EntityModal({
-  modal,
-  curriculums,
-  levels,
-  subjects,
-  saving,
-  onClose,
-  onSave,
-}: {
-  modal: NonNullable<ModalState>;
-  curriculums: Curriculum[];
-  levels: Level[];
-  subjects: Subject[];
-  saving: boolean;
-  onClose: () => void;
-  onSave: (values: {
-    name: string;
-    description: string;
-    code?: string;
-  }) => Promise<void>;
-}) {
-  const existing =
-    modal.mode === "edit"
-      ? modal.type === "curriculum"
-        ? curriculums.find((item) => item.id === modal.id)
-        : modal.type === "level"
-          ? levels.find((item) => item.id === modal.id)
-          : subjects.find((item) => item.id === modal.id)
-      : undefined;
-
+function EntityModal({ modal, curriculums, levels, subjects, saving, onClose, onSave }: { modal: NonNullable<ModalState>; curriculums: Curriculum[]; levels: Level[]; subjects: Subject[]; saving: boolean; onClose: () => void; onSave: (values: { name: string; description: string; code?: string }) => Promise<void> }) {
+  const existing = modal.mode === "edit" ? modal.type === "curriculum" ? curriculums.find((item) => item.id === modal.id) : modal.type === "level" ? levels.find((item) => item.id === modal.id) : subjects.find((item) => item.id === modal.id) : undefined;
   const [name, setName] = useState(existing?.name ?? "");
   const [description, setDescription] = useState(existing?.description ?? "");
-  const [code, setCode] = useState<string>(
-    modal.type === "subject" && existing && "code" in existing
-      ? String(existing.code ?? "")
-      : "",
-  );
-
-  const entityLabel =
-    modal.type === "curriculum"
-      ? "Curriculum"
-      : modal.type === "level"
-        ? "Level"
-        : "Subject";
-
-  const title = `${modal.mode === "create" ? "Add" : "Edit"} ${entityLabel}`;
-
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!name.trim()) return;
-    await onSave({
-      name: name.trim(),
-      description: description.trim(),
-      ...(modal.type === "subject" ? { code: code.trim() } : {}),
-    });
-  }
-
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-2xl border border-border bg-card shadow-2xl">
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <div>
-            <h2 className="text-base font-bold text-foreground">{title}</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {modal.mode === "create"
-                ? "Add a new item to the academic structure."
-                : "Update the selected item."}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4 p-5">
-          <div>
-            <label htmlFor="entity-name" className="mb-1.5 block text-xs font-bold text-foreground">
-              Name
-            </label>
-            <input
-              id="entity-name"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder={`Enter ${modal.type} name`}
-              autoFocus
-              required
-              className="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none transition placeholder:text-muted-foreground/50 focus:border-primary focus:ring-4 focus:ring-primary/10"
-            />
-          </div>
-
-          {modal.type === "subject" && (
-            <div>
-              <label htmlFor="entity-code" className="mb-1.5 block text-xs font-bold text-foreground">
-                Code
-                <span className="ml-1 font-normal text-muted-foreground">(optional)</span>
-              </label>
-              <input
-                id="entity-code"
-                value={code}
-                onChange={(event) => setCode(event.target.value)}
-                placeholder="e.g. PHY"
-                className="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none transition placeholder:text-muted-foreground/50 focus:border-primary focus:ring-4 focus:ring-primary/10"
-              />
-            </div>
-          )}
-
-          <div>
-            <label htmlFor="entity-description" className="mb-1.5 block text-xs font-bold text-foreground">
-              Description
-              <span className="ml-1 font-normal text-muted-foreground">(optional)</span>
-            </label>
-            <textarea
-              id="entity-description"
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              placeholder="Add a short description..."
-              rows={3}
-              className="w-full resize-none rounded-xl border border-input bg-background px-3 py-2.5 text-sm outline-none transition placeholder:text-muted-foreground/50 focus:border-primary focus:ring-4 focus:ring-primary/10"
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 border-t border-border pt-4">
-            <button type="button" onClick={onClose} disabled={saving} className="button-secondary h-10 px-4">
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving || !name.trim()}
-              className="button-primary h-10 px-4 disabled:pointer-events-none disabled:opacity-50"
-            >
-              {saving ? "Saving..." : modal.mode === "create" ? "Create" : "Save changes"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
+  const [code, setCode] = useState<string>(modal.type === "subject" && existing && "code" in existing ? String(existing.code ?? "") : "");
+  const entityLabel = modal.type === "curriculum" ? "Curriculum" : modal.type === "level" ? "Level" : "Subject";
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) { event.preventDefault(); if (!name.trim()) return; await onSave({ name: name.trim(), description: description.trim(), ...(modal.type === "subject" ? { code: code.trim() } : {}) }); }
+  return <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"><div className="w-full max-w-md rounded-2xl border border-border bg-card shadow-2xl"><div className="flex items-center justify-between border-b border-border px-5 py-4"><div><h2 className="text-base font-bold text-foreground">{modal.mode === "create" ? "Add" : "Edit"} {entityLabel}</h2><p className="mt-1 text-xs text-muted-foreground">{modal.mode === "create" ? "Add a new item to the academic structure." : "Update the selected item."}</p></div><button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Close"><X className="h-4 w-4" /></button></div><form onSubmit={handleSubmit} className="space-y-4 p-5"><div><label htmlFor="entity-name" className="mb-1.5 block text-xs font-bold text-foreground">Name</label><input id="entity-name" value={name} onChange={(event) => setName(event.target.value)} placeholder={`Enter ${modal.type} name`} autoFocus required className="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none transition placeholder:text-muted-foreground/50 focus:border-primary focus:ring-4 focus:ring-primary/10" /></div>{modal.type === "subject" && <div><label htmlFor="entity-code" className="mb-1.5 block text-xs font-bold text-foreground">Code <span className="ml-1 font-normal text-muted-foreground">(optional)</span></label><input id="entity-code" value={code} onChange={(event) => setCode(event.target.value)} placeholder="e.g. PHY" className="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none transition placeholder:text-muted-foreground/50 focus:border-primary focus:ring-4 focus:ring-primary/10" /></div>}<div><label htmlFor="entity-description" className="mb-1.5 block text-xs font-bold text-foreground">Description <span className="ml-1 font-normal text-muted-foreground">(optional)</span></label><textarea id="entity-description" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Add a short description..." rows={3} className="w-full resize-none rounded-xl border border-input bg-background px-3 py-2.5 text-sm outline-none transition placeholder:text-muted-foreground/50 focus:border-primary focus:ring-4 focus:ring-primary/10" /></div><div className="flex justify-end gap-2 border-t border-border pt-4"><button type="button" onClick={onClose} disabled={saving} className="button-secondary h-10 px-4">Cancel</button><button type="submit" disabled={saving || !name.trim()} className="button-primary h-10 px-4 disabled:pointer-events-none disabled:opacity-50">{saving ? "Saving..." : modal.mode === "create" ? "Create" : "Save changes"}</button></div></form></div></div>;
 }
