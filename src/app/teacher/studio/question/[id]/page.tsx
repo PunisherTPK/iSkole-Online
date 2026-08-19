@@ -54,6 +54,7 @@ export default function QuestionPageEditor() {
   const [previewMode, setPreviewMode] = useState(false);
   const [error, setError] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [publishing, setPublishing] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -96,7 +97,7 @@ export default function QuestionPageEditor() {
 
     const { data: discussionData, error: discussionError } = await supabase
       .from("question_page_discussions")
-      .select("id, video_url")
+      .select("id, youtube_url")
       .eq("question_page_id", pageId)
       .maybeSingle();
 
@@ -106,7 +107,7 @@ export default function QuestionPageEditor() {
       return;
     }
 
-    const existingDiscussionUrl = discussionData?.video_url ?? "";
+    const existingDiscussionUrl = discussionData?.youtube_url ?? "";
     setDiscussionUrl(existingDiscussionUrl);
     setSavedDiscussionUrl(existingDiscussionUrl);
 
@@ -293,14 +294,14 @@ export default function QuestionPageEditor() {
       if (existing?.id) {
         const { error: updateError } = await supabase
           .from("question_page_discussions")
-          .update({ video_url: url })
+          .update({ youtube_url: url })
           .eq("id", existing.id);
 
         if (updateError) throw new Error(updateError.message);
       } else {
         const { error: insertError } = await supabase
           .from("question_page_discussions")
-          .insert({ question_page_id: page.id, video_url: url });
+          .insert({ question_page_id: page.id, youtube_url: url });
 
         if (insertError) throw new Error(insertError.message);
       }
@@ -337,6 +338,64 @@ export default function QuestionPageEditor() {
     }
 
     setSaving(false);
+  }
+
+  async function togglePublished() {
+    if (!page) return;
+
+    if (!page.is_published) {
+      if (questions.length === 0) {
+        setError("Add at least one question before publishing.");
+        return;
+      }
+
+      for (const question of questions) {
+        if (!question.question_number || question.marks <= 0) {
+          setError(
+            `Question ${question.question_number ?? "?"} needs a valid number and marks.`,
+          );
+          return;
+        }
+
+        if (
+          page.page_type === "mcq" &&
+          !answers[question.id]?.correct_option
+        ) {
+          setError(
+            `Question ${question.question_number} needs a correct MCQ option.`,
+          );
+          return;
+        }
+      }
+    }
+
+    setPublishing(true);
+    setError("");
+
+    try {
+      const { error: updateError } = await supabase
+        .from("question_pages")
+        .update({
+          is_published: !page.is_published,
+        })
+        .eq("id", page.id);
+
+      if (updateError) throw new Error(updateError.message);
+
+      setPage((current) =>
+        current
+          ? { ...current, is_published: !current.is_published }
+          : current,
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to update publication status.",
+      );
+    } finally {
+      setPublishing(false);
+    }
   }
 
   async function handleQuestionImage(question: Question, file: File) {
@@ -522,8 +581,28 @@ export default function QuestionPageEditor() {
           <h1 className="mt-1 text-2xl font-extrabold tracking-tight">{page.title}</h1>
           {page.description && <p className="mt-1 text-sm text-muted-foreground">{page.description}</p>}
         </div>
-
+        <span
+          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+            page.is_published
+              ? "bg-emerald-500/10 text-emerald-600"
+              : "bg-muted text-muted-foreground"
+          }`}
+        >
+          {page.is_published ? "Published" : "Draft"}
+        </span>
         <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => void togglePublished()}
+            disabled={publishing}
+            className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+          >
+            {publishing
+              ? "Updating..."
+              : page.is_published
+                ? "Unpublish"
+                : "Publish"}
+          </button>
           <button type="button" onClick={() => setPreviewMode(true)} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold hover:bg-muted">
             <Eye className="h-4 w-4" /> Preview
           </button>
