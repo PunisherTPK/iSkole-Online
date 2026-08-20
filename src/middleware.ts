@@ -29,56 +29,37 @@ export async function middleware(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => {
-            request.cookies.set(name, value);
-          });
-
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          });
-
-          cookiesToSet.forEach(({ name, value, options }) => {
-            response.cookies.set(name, value, options);
-          });
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          response = NextResponse.next({ request: { headers: request.headers } });
+          cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
         },
       },
     },
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  const { data: { user } } = await supabase.auth.getUser();
   const pathname = request.nextUrl.pathname;
 
+  // Question Pages are public. Authentication is required only when a
+  // student attempts to practise/submit answers.
+  const isPublicQuestionPage =
+    pathname === "/student/question" || pathname.startsWith("/student/question/");
+
   const isProtectedRoute = protectedRoutes.some(
-    (route) =>
-      pathname === route || pathname.startsWith(`${route}/`),
-  );
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
+  ) && !isPublicQuestionPage;
 
   const isAuthRoute = authRoutes.some(
-    (route) =>
-      pathname === route || pathname.startsWith(`${route}/`),
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
 
-  /*
-   * Logged out users cannot access application routes.
-   */
   if (isProtectedRoute && !user) {
     const loginUrl = new URL("/login", request.url);
-
     loginUrl.searchParams.set("redirect", pathname);
-
     return NextResponse.redirect(loginUrl);
   }
 
-  /*
-   * Logged-in users should not see login/register pages.
-   */
   if (isAuthRoute && user) {
     const { data: profile } = await supabase
       .from("profiles")
@@ -86,20 +67,11 @@ export async function middleware(request: NextRequest) {
       .eq("id", user.id)
       .single();
 
-    if (profile?.role === "admin") {
-      return NextResponse.redirect(new URL("/admin", request.url));
-    }
-
-    if (profile?.role === "teacher") {
-      return NextResponse.redirect(new URL("/teacher", request.url));
-    }
-
+    if (profile?.role === "admin") return NextResponse.redirect(new URL("/admin", request.url));
+    if (profile?.role === "teacher") return NextResponse.redirect(new URL("/teacher", request.url));
     return NextResponse.redirect(new URL("/student", request.url));
   }
 
-  /*
-   * Logged-in users can only access their own application area.
-   */
   if (isProtectedRoute && user) {
     const { data: profile } = await supabase
       .from("profiles")
@@ -108,39 +80,18 @@ export async function middleware(request: NextRequest) {
       .single();
 
     const role = profile?.role;
-
-    if (pathname.startsWith("/admin") && role !== "admin") {
-      return redirectToRole(role, request);
-    }
-
-    if (pathname.startsWith("/teacher") && role !== "teacher") {
-      return redirectToRole(role, request);
-    }
-
-    if (pathname.startsWith("/student") && role !== "student") {
-      return redirectToRole(role, request);
-    }
+    if (pathname.startsWith("/admin") && role !== "admin") return redirectToRole(role, request);
+    if (pathname.startsWith("/teacher") && role !== "teacher") return redirectToRole(role, request);
+    if (pathname.startsWith("/student") && role !== "student") return redirectToRole(role, request);
   }
 
   return response;
 }
 
-function redirectToRole(
-  role: string | null | undefined,
-  request: NextRequest,
-) {
-  if (role === "admin") {
-    return NextResponse.redirect(new URL("/admin", request.url));
-  }
-
-  if (role === "teacher") {
-    return NextResponse.redirect(new URL("/teacher", request.url));
-  }
-
-  if (role === "student") {
-    return NextResponse.redirect(new URL("/student", request.url));
-  }
-
+function redirectToRole(role: string | null | undefined, request: NextRequest) {
+  if (role === "admin") return NextResponse.redirect(new URL("/admin", request.url));
+  if (role === "teacher") return NextResponse.redirect(new URL("/teacher", request.url));
+  if (role === "student") return NextResponse.redirect(new URL("/student", request.url));
   return NextResponse.redirect(new URL("/", request.url));
 }
 
