@@ -24,13 +24,30 @@ export default function StudentPage() {
       setLoading(true); setError("");
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { setError("Please sign in to view your learning dashboard."); setLoading(false); return; }
+
+      // Practice history is independent of subscriptions. A free student can
+      // practice public Q Pages, so their statistics must remain visible even
+      // when they have no active subscription.
+      const { data: practiceData, error: practiceError } = await supabase
+        .from("practice_sessions")
+        .select("question_page_id,total_questions,answered_questions,correct_questions,earned_marks,total_marks,completed_at")
+        .eq("user_id", user.id)
+        .order("completed_at", { ascending: false });
+      if (practiceError) { setError(practiceError.message); setLoading(false); return; }
+      const practiceRows = (practiceData ?? []) as Practice[];
+      setAllPractice(practiceRows);
+
       const now = new Date().toISOString();
       const { data: subscriptionData, error: subscriptionError } = await supabase.from("student_subscriptions").select("subject_id,status,starts_at,ends_at,plan_type").eq("user_id", user.id).eq("status", "active").lte("starts_at", now).or(`ends_at.is.null,ends_at.gt.${now}`);
       if (subscriptionError) { setError(subscriptionError.message); setLoading(false); return; }
       const subscriptions = (subscriptionData ?? []) as Subscription[];
       const hasAllSubjectsSubscription = subscriptions.some((subscription) => subscription.plan_type === "premium" || subscription.subject_id === null);
       const subscribedSubjectIds = new Set(subscriptions.map((subscription) => subscription.subject_id).filter((id): id is string => Boolean(id)));
-      if (!hasAllSubjectsSubscription && subscribedSubjectIds.size === 0) { setPages([]); setSubjects({}); setPractice({}); setAllPractice([]); setLoading(false); return; }
+
+      if (!hasAllSubjectsSubscription && subscribedSubjectIds.size === 0) {
+        setPages([]); setSubjects({}); setPractice({}); setLoading(false); return;
+      }
+
       let pageQuery = supabase.from("question_pages").select("id,title,description,page_type,subject_id").eq("is_published", true).order("created_at", { ascending: false }).limit(50);
       if (!hasAllSubjectsSubscription) pageQuery = pageQuery.in("subject_id", [...subscribedSubjectIds]);
       const { data: pageData, error: pageError } = await pageQuery;
@@ -43,19 +60,16 @@ export default function StudentPage() {
         setSubjects(Object.fromEntries(((subjectData ?? []) as Subject[]).map((subject) => [subject.id, subject])));
       } else setSubjects({});
 
-      const pageIds = pageRows.map((page) => page.id);
-      const { data: practiceData, error: practiceError } = await supabase.from("practice_sessions").select("question_page_id,total_questions,answered_questions,correct_questions,earned_marks,total_marks,completed_at").eq("user_id", user.id).in("question_page_id", pageIds).order("completed_at", { ascending: false });
-      if (practiceError) { setError(practiceError.message); setLoading(false); return; }
-      const practiceRows = (practiceData ?? []) as Practice[];
+      const pageIds = new Set(pageRows.map((page) => page.id));
       const latestByPage: Record<string, Practice> = {};
-      for (const row of practiceRows) if (!latestByPage[row.question_page_id]) latestByPage[row.question_page_id] = row;
-      setAllPractice(practiceRows); setPractice(latestByPage); setPages(pageRows); setLoading(false);
+      for (const row of practiceRows) if (pageIds.has(row.question_page_id) && !latestByPage[row.question_page_id]) latestByPage[row.question_page_id] = row;
+      setPractice(latestByPage); setPages(pageRows); setLoading(false);
     }
     void load();
   }, [supabase]);
 
-  // Dashboard cards are based on every recorded attempt, while each Q Page card
-  // shows the student's latest attempt for that page.
+  // Dashboard cards use every recorded attempt, while each subscribed Q Page
+  // card shows the student's latest attempt for that page.
   const attemptedPages = new Set(allPractice.map((item) => item.question_page_id)).size;
   const totalAttempts = allPractice.length;
   const totalCorrect = allPractice.reduce((sum, item) => sum + Number(item.correct_questions), 0);
