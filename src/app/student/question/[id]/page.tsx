@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, CheckCircle2, CircleAlert, Loader2, RotateCcw, Send, Trophy, XCircle } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
@@ -7,7 +8,6 @@ import { createClient } from "@/lib/supabase/client";
 
 type Page = { id: string; title: string; description: string | null; page_type: string; is_published: boolean };
 type Question = { id: string; question_number: number | null; question_type: string; marks: number; order_index: number; question_image_url: string | null };
-type Answer = { question_id: string; answer_image_url: string | null; answer_text: string | null };
 type Detail = { question_id: string; question_number: number | null; selected_option: string | null; correct_option: string | null; is_correct: boolean; explanation: string | null; answer_image_url: string | null };
 type Result = { answered: number; correct: number; wrong: number; earnedMarks: number; totalMarks: number; isPaid: boolean; details: Detail[]; youtubeUrl: string | null };
 const OPTIONS = ["A", "B", "C", "D"] as const;
@@ -18,7 +18,6 @@ export default function StudentQuestionPage() {
   const { id: pageId } = useParams<{ id: string }>();
   const [page, setPage] = useState<Page | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [answers, setAnswers] = useState<Record<string, Answer>>({});
   const [selected, setSelected] = useState<Record<string, string>>({});
   const [result, setResult] = useState<Result | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,15 +32,7 @@ export default function StudentQuestionPage() {
       if (pageError || !pageData) { setError(pageError?.message ?? "This Question Page is unavailable."); setLoading(false); return; }
       const { data: questionData, error: questionError } = await supabase.from("questions").select("id,question_number,question_type,marks,order_index,question_image_url").eq("question_page_id", pageId).order("order_index");
       if (questionError) { setError(questionError.message); setLoading(false); return; }
-      const rows = (questionData ?? []) as Question[];
-      const ids = rows.map((q) => q.id);
-      let answerRows: Answer[] = [];
-      if (ids.length) {
-        const { data, error } = await supabase.from("question_answers").select("question_id,answer_image_url,answer_text").in("question_id", ids);
-        if (error) { setError(error.message); setLoading(false); return; }
-        answerRows = (data ?? []) as Answer[];
-      }
-      setPage(pageData as Page); setQuestions(rows); setAnswers(Object.fromEntries(answerRows.map((a) => [a.question_id, a]))); setLoading(false);
+      setPage(pageData as Page); setQuestions((questionData ?? []) as Question[]); setLoading(false);
     }
     void load();
   }, [pageId, supabase]);
@@ -77,9 +68,9 @@ export default function StudentQuestionPage() {
       const chosen = selected[question.id]; const detail = detailMap[question.id]; const paidReview = Boolean(result?.isPaid && detail); const isCorrect = paidReview && detail.is_correct; const isIncorrect = paidReview && !detail.is_correct && Boolean(detail.selected_option);
       return <article key={question.id} className={`rounded-2xl border bg-card p-4 sm:p-6 ${paidReview ? isCorrect ? "border-emerald-500/30" : isIncorrect ? "border-destructive/30" : "border-border" : "border-border"}`}>
         <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-wider text-primary">Question {question.question_number ?? index + 1}</p><h2 className="mt-1 text-lg font-bold">{question.marks} mark{Number(question.marks) === 1 ? "" : "s"}</h2></div>{paidReview && (isCorrect ? <CheckCircle2 className="h-6 w-6 shrink-0 text-emerald-600" /> : isIncorrect ? <XCircle className="h-6 w-6 shrink-0 text-destructive" /> : <CircleAlert className="h-6 w-6 shrink-0 text-muted-foreground" />)}</div>
-        {question.question_image_url ? <img src={question.question_image_url} alt={`Question ${question.question_number ?? index + 1}`} className="mt-5 max-h-[700px] w-full rounded-xl border border-border object-contain" /> : <div className="mt-5 flex h-28 items-center justify-center rounded-xl border border-dashed border-border text-sm text-muted-foreground">Question image unavailable</div>}
+        {question.question_image_url ? <Image src={question.question_image_url} alt={`Question ${question.question_number ?? index + 1}`} width={1200} height={900} sizes="(max-width: 768px) 100vw, 896px" className="mt-5 max-h-[700px] w-full rounded-xl border border-border object-contain" /> : <div className="mt-5 flex h-28 items-center justify-center rounded-xl border border-dashed border-border text-sm text-muted-foreground">Question image unavailable</div>}
         {page.page_type.toLowerCase() === "mcq" && <div className="mt-5 grid gap-3 sm:grid-cols-2">{OPTIONS.map((option) => { const chosenThis = chosen?.toUpperCase() === option; const correctThis = paidReview && detail.correct_option?.toUpperCase() === option; return <button key={option} type="button" onClick={() => choose(question.id, option)} disabled={Boolean(result)} className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left text-sm font-semibold transition ${chosenThis ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted/60"} ${correctThis ? "!border-emerald-500/40 !bg-emerald-500/10 !text-emerald-700" : ""} ${paidReview && chosenThis && !correctThis ? "!border-destructive/40 !bg-destructive/5 !text-destructive" : ""}`}><span className={`flex h-8 w-8 items-center justify-center rounded-full border text-xs ${chosenThis ? "border-primary bg-primary text-primary-foreground" : "border-border"}`}>{option}</span>{chosenThis ? "Selected" : `Option ${option}`}</button>; })}</div>}
-        {paidReview && page.page_type.toLowerCase() === "mcq" && <div className="mt-4 rounded-xl bg-muted/50 p-4 text-sm"><p className="font-semibold">{detail.selected_option ? `Your answer: ${detail.selected_option}` : "You did not answer this question."}</p>{detail.correct_option && <p className="mt-1 text-muted-foreground">Correct answer: <span className="font-bold text-foreground">{detail.correct_option}</span></p>}{detail.explanation && <p className="mt-3 whitespace-pre-wrap text-muted-foreground">{detail.explanation}</p>}{detail.answer_image_url && <img src={detail.answer_image_url} alt="Answer explanation" className="mt-3 max-h-[600px] w-full rounded-xl border border-border object-contain" />}</div>}
+        {paidReview && page.page_type.toLowerCase() === "mcq" && <div className="mt-4 rounded-xl bg-muted/50 p-4 text-sm"><p className="font-semibold">{detail.selected_option ? `Your answer: ${detail.selected_option}` : "You did not answer this question."}</p>{detail.correct_option && <p className="mt-1 text-muted-foreground">Correct answer: <span className="font-bold text-foreground">{detail.correct_option}</span></p>}{detail.explanation && <p className="mt-3 whitespace-pre-wrap text-muted-foreground">{detail.explanation}</p>}{detail.answer_image_url && <Image src={detail.answer_image_url} alt="Answer explanation" width={1000} height={750} sizes="(max-width: 768px) 100vw, 896px" className="mt-3 max-h-[600px] w-full rounded-xl border border-border object-contain" />}</div>}
       </article>;
     })}</section>
     {!result && questions.length > 0 && <section className="rounded-2xl border border-primary/20 bg-primary/5 p-5 sm:p-6"><div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-bold">Ready to submit?</p><p className="mt-1 text-sm text-muted-foreground">You have answered {answeredCount} of {questions.length} questions.</p></div><button type="button" onClick={() => void submit()} disabled={submitting} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground disabled:opacity-50">{submitting ? <><Loader2 className="h-4 w-4 animate-spin" /> Submitting...</> : <><Send className="h-4 w-4" /> Submit Answers</>}</button></div></section>}
