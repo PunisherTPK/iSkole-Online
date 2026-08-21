@@ -10,22 +10,12 @@ export default function PaymentSettingsPage() {
   const supabase = useMemo(() => createClient(), []);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [paymentMethod, setPaymentMethod] = useState("LankaQR");
-  const [accountName, setAccountName] = useState("");
-  const [instructions, setInstructions] = useState("");
-  const [subjectPrice, setSubjectPrice] = useState("");
-  const [premiumPrice, setPremiumPrice] = useState("");
-  const [currency, setCurrency] = useState("LKR");
-  const [isActive, setIsActive] = useState(true);
-  const [qrUrl, setQrUrl] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  const [accountName, setAccountName] = useState(""); const [instructions, setInstructions] = useState(""); const [subjectPrice, setSubjectPrice] = useState(""); const [premiumPrice, setPremiumPrice] = useState(""); const [currency, setCurrency] = useState("LKR"); const [isActive, setIsActive] = useState(true); const [qrUrl, setQrUrl] = useState(""); const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false); const [uploading, setUploading] = useState(false); const [message, setMessage] = useState(""); const [error, setError] = useState("");
+  const QR_BUCKET = "payment-qr";
 
   useEffect(() => { let mounted = true; async function load() { const { data, error: loadError } = await supabase.from("payment_settings").select("*").limit(1).maybeSingle(); if (!mounted) return; if (loadError) setError(loadError.message); else if (data) { const s = data as Settings; setSettings(s); setPaymentMethod(s.payment_method || "LankaQR"); setAccountName(s.account_name || ""); setInstructions(s.instructions || ""); setSubjectPrice(s.subject_price?.toString() || ""); setPremiumPrice(s.premium_price?.toString() || ""); setCurrency(s.currency || "LKR"); setIsActive(s.is_active); setQrUrl(s.qr_image_url || ""); } setLoading(false); } void load(); return () => { mounted = false; }; }, [supabase]);
 
-  async function uploadQr(file: File) { setError(""); setMessage(""); if (!file.type.startsWith("image/")) { setError("Please select an image file."); return; } if (file.size > 5 * 1024 * 1024) { setError("QR image must be 5 MB or smaller."); return; } setUploading(true); const ext = file.name.split(".").pop()?.toLowerCase() || "png"; const path = `payment-qr/${crypto.randomUUID()}.${ext}`; const { error: uploadError } = await supabase.storage.from("payment-images").upload(path, file, { upsert: true, contentType: file.type }); if (uploadError) { setError(uploadError.message); setUploading(false); return; } const { data } = supabase.storage.from("payment-images").getPublicUrl(path); setQrUrl(data.publicUrl); setUploading(false); setMessage("QR image uploaded. Save settings to apply it."); }
+  async function uploadQr(file: File) { setError(""); setMessage(""); if (!file.type.startsWith("image/")) { setError("Please select an image file."); return; } if (file.size > 5 * 1024 * 1024) { setError("QR image must be 5 MB or smaller."); return; } setUploading(true); const ext = file.name.split(".").pop()?.toLowerCase() || "png"; const path = `${crypto.randomUUID()}.${ext}`; const { error: uploadError } = await supabase.storage.from(QR_BUCKET).upload(path, file, { upsert: true, contentType: file.type }); if (uploadError) { setError(uploadError.message); setUploading(false); return; } const { data } = supabase.storage.from(QR_BUCKET).getPublicUrl(path); setQrUrl(data.publicUrl); setUploading(false); setMessage("QR image uploaded. Save settings to apply it."); }
 
   async function save() { setSaving(true); setError(""); setMessage(""); const payload = { payment_method: paymentMethod.trim() || "LankaQR", qr_image_url: qrUrl || null, account_name: accountName.trim() || null, instructions: instructions.trim() || null, is_active: isActive, subject_price: subjectPrice === "" ? null : Number(subjectPrice), premium_price: premiumPrice === "" ? null : Number(premiumPrice), currency: currency.trim().toUpperCase() || "LKR" }; if (payload.subject_price !== null && (!Number.isFinite(payload.subject_price) || payload.subject_price < 0)) { setError("Enter a valid subject price."); setSaving(false); return; } if (payload.premium_price !== null && (!Number.isFinite(payload.premium_price) || payload.premium_price < 0)) { setError("Enter a valid premium price."); setSaving(false); return; } let result; if (settings?.id) result = await supabase.from("payment_settings").update(payload).eq("id", settings.id).select("*").single(); else result = await supabase.from("payment_settings").insert(payload).select("*").single(); if (result.error) setError(result.error.message); else { setSettings(result.data as Settings); setMessage("Payment settings saved successfully."); } setSaving(false); }
 
