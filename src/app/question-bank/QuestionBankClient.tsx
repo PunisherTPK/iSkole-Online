@@ -53,7 +53,62 @@ export default function QuestionBankClient() {
   function openCurriculum(c:Curriculum){setCrumbs([{id:c.id,name:c.name,kind:"curriculum"}]);setSearch("");}
   function openLevel(l:Level){const c=curriculums.find(x=>x.id===l.curriculum_id);setCrumbs([{id:c?.id??"",name:c?.name??"Curriculum",kind:"curriculum"},{id:l.id,name:l.name,kind:"level"}]);setSearch("");}
   function openSubject(s:Subject){const l=levels.find(x=>x.id===s.level_id),c=l&&curriculums.find(x=>x.id===l.curriculum_id);setCrumbs([{id:c?.id??"",name:c?.name??"Curriculum",kind:"curriculum"},{id:l?.id??"",name:l?.name??"Level",kind:"level"},{id:s.id,name:s.name,kind:"subject"}]);setSearch("");}
-  function openNode(n:Node){const s=n.subject_id&&subjects.find(x=>x.id===n.subject_id);const l=s&&levels.find(x=>x.id===s.level_id),c=l&&curriculums.find(x=>x.id===l.curriculum_id);const chain:Crumb[]=[{id:c?.id??"",name:c?.name??"Curriculum",kind:"curriculum"},{id:l?.id??"",name:l?.name??"Level",kind:"level"},{id:s?.id??"",name:s?.name??"Subject",kind:"subject"}]; const parents:Node[]=[];let x:Node|undefined=n;while(x){parents.unshift(x);x=x.parent_id?nodes.find(y=>y.id===x!.parent_id):undefined;}parents.forEach(p=>chain.push({id:p.id,name:p.name,kind:"node"}));setCrumbs(chain);setSearch("");}
+  function openNode(n: Node) {
+    const s = n.subject_id
+      ? subjects.find((x) => x.id === n.subject_id)
+      : undefined;
+
+    const l = s
+      ? levels.find((x) => x.id === s.level_id)
+      : undefined;
+
+    const c = l
+      ? curriculums.find((x) => x.id === l.curriculum_id)
+      : undefined;
+
+    const chain: Crumb[] = [
+      {
+        id: c?.id ?? "",
+        name: c?.name ?? "Curriculum",
+        kind: "curriculum",
+      },
+      {
+        id: l?.id ?? "",
+        name: l?.name ?? "Level",
+        kind: "level",
+      },
+      {
+        id: s?.id ?? "",
+        name: s?.name ?? "Subject",
+        kind: "subject",
+      },
+    ];
+
+    const parents: Node[] = [];
+    let x: Node | undefined = n;
+
+    while (x) {
+      parents.unshift(x);
+      x = x.parent_id
+        ? nodes.find((y) => y.id === x!.parent_id)
+        : undefined;
+    }
+
+    parents.forEach((p) =>
+      chain.push({
+        id: p.id,
+        name: p.name,
+        kind: "node",
+      })
+    );
+
+    setCrumbs(chain);
+    setSearch("");
+  }  
+  
+  
+  
+  
   function goCrumb(i:number){setCrumbs(crumbs.slice(0,i+1));}
 
   const title=currentNode?.name??currentSubject?.name??currentLevel?.name??selectedCurriculum?.name??"Question Bank";
