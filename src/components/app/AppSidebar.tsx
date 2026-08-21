@@ -9,8 +9,7 @@ type NavItem = { label: string; href: string; icon: React.ComponentType<{ classN
 const navigation: Record<AppRole, NavItem[]> = {
   admin: [
     { label: "Dashboard", href: "/admin", icon: LayoutDashboard }, { label: "Content Manager", href: "/admin/content-manager", icon: BookOpen },
-    { label: "Teacher Studio", href: "/admin/studio", icon: BookOpen }, { label: "Teachers", href: "/admin/teachers", icon: GraduationCap },
-    { label: "Students", href: "/admin/students", icon: Users }, { label: "Payment Requests", href: "/admin/payments", icon: CreditCard },
+    { label: "Teachers", href: "/admin/teachers", icon: GraduationCap }, { label: "Students", href: "/admin/students", icon: Users }, { label: "Payment Requests", href: "/admin/payments", icon: CreditCard },
     { label: "Payment Settings", href: "/admin/payment-settings", icon: Settings },
   ],
   teacher: [
