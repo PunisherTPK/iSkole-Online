@@ -6,41 +6,15 @@ import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-function Logo() { return <Link href="/" aria-label="iSkole home" className="group inline-flex items-center gap-2"><span className="text-2xl font-extrabold tracking-tight text-primary">iSkole</span></Link>; }
+function Logo() { return <Link href="/" aria-label="iSkole home" className="inline-flex items-center"><Image src="/iskole%20logo.png" alt="iSkole" width={150} height={48} priority className="h-9 w-auto object-contain" /></Link>; }
 const links = [{ label: "Home", href: "/" }, { label: "Question Bank", href: "/question-bank" }, { label: "Notes", href: "https://note-finder.vercel.app/", external: true }, { label: "Mentors", href: "/mentors" }, { label: "Pricing", href: "/pricing" }, { label: "About Us", href: "/about" }];
 const roleHome: Record<string, string> = { admin: "/admin", teacher: "/teacher", student: "/student" };
 function initials(name: string) { return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "U"; }
-
-function resolveAvatarUrl(userId: string, role: string, avatarUrl: string | null) {
-  if (!avatarUrl) return null;
-  // Teacher avatars are stored as Storage paths by the secure upload flow.
-  // Always resolve them through the public avatar route so the navbar works
-  // on every public page and does not treat a Storage path as a site-relative URL.
-  if (role === "teacher") return `/api/public/avatar/${userId}`;
-  if (avatarUrl.startsWith("http://") || avatarUrl.startsWith("https://") || avatarUrl.startsWith("/")) return avatarUrl;
-  return null;
-}
+function resolveAvatarUrl(userId: string, role: string, avatarUrl: string | null) { if (!avatarUrl) return null; if (role === "teacher") return `/api/public/avatar/${userId}`; if (avatarUrl.startsWith("http://") || avatarUrl.startsWith("https://") || avatarUrl.startsWith("/")) return avatarUrl; return null; }
 
 export default function Navbar() {
-  const pathname = usePathname();
-  const supabase = useMemo(() => createClient(), []);
-  const [profile, setProfile] = useState<{ name: string; avatarUrl: string | null; role: string } | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    async function loadProfile() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user || !active) return;
-      const { data } = await supabase.from("profiles").select("full_name, avatar_url, role").eq("id", user.id).maybeSingle();
-      if (!active) return;
-      const name = data?.full_name || user.user_metadata?.full_name || user.email?.split("@")[0] || "Account";
-      setProfile({ name, avatarUrl: resolveAvatarUrl(user.id, data?.role ?? "student", data?.avatar_url ?? null), role: data?.role ?? "student" });
-    }
-    void loadProfile();
-    return () => { active = false; };
-  }, [supabase, pathname]);
-
-  const dashboardHref = profile ? (roleHome[profile.role] ?? "/student") : "/login";
-  const isActive = (href: string) => href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+  const pathname = usePathname(); const supabase = useMemo(() => createClient(), []); const [profile, setProfile] = useState<{ name: string; avatarUrl: string | null; role: string } | null>(null);
+  useEffect(() => { let active = true; async function loadProfile() { const { data: { user } } = await supabase.auth.getUser(); if (!user || !active) return; const { data } = await supabase.from("profiles").select("full_name, avatar_url, role").eq("id", user.id).maybeSingle(); if (!active) return; const name = data?.full_name || user.user_metadata?.full_name || user.email?.split("@")[0] || "Account"; setProfile({ name, avatarUrl: resolveAvatarUrl(user.id, data?.role ?? "student", data?.avatar_url ?? null), role: data?.role ?? "student" }); } void loadProfile(); return () => { active = false; }; }, [supabase, pathname]);
+  const dashboardHref = profile ? (roleHome[profile.role] ?? "/student") : "/login"; const isActive = (href: string) => href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
   return <header className="sticky top-0 z-50 border-b border-border/70 bg-white/90 backdrop-blur-xl"><div className="container-site"><div className="flex h-[72px] items-center justify-between"><Logo /><nav aria-label="Main navigation" className="hidden items-center gap-7 lg:flex">{links.map((link) => link.external ? <a key={link.href} href={link.href} target="_blank" rel="noreferrer" className="py-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground">{link.label}</a> : <Link key={link.href} href={link.href} className={`relative py-2 text-sm font-semibold transition-colors duration-150 ${isActive(link.href) ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}>{link.label}{isActive(link.href) && <span className="absolute inset-x-0 -bottom-[17px] mx-auto h-0.5 w-8 rounded-full bg-primary" />}</Link>)}</nav><div className="hidden items-center gap-2.5 sm:flex">{!profile ? <><Link href="/login" className="inline-flex min-h-10 items-center justify-center rounded-lg border border-border bg-white px-4 text-sm font-bold text-foreground transition hover:border-primary/30 hover:bg-primary-light hover:text-primary">Login</Link><Link href="/register" className="button-primary min-h-10 px-5">Get Started</Link></> : <Link href={dashboardHref} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-border bg-white px-3 text-sm font-bold text-foreground transition hover:border-primary/30 hover:bg-primary-light hover:text-primary">{profile.avatarUrl ? <Image src={profile.avatarUrl} alt="" width={28} height={28} className="h-7 w-7 rounded-full object-cover" unoptimized /> : <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-[10px] font-extrabold text-primary">{initials(profile.name)}</span>}<span className="max-w-32 truncate">{profile.name}</span></Link>}</div><details className="relative sm:hidden"><summary aria-label="Open navigation menu" className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-lg border border-border bg-white text-foreground [&::-webkit-details-marker]:hidden"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg></summary><div className="absolute right-0 top-12 w-[min(320px,calc(100vw-2rem))] rounded-2xl border border-border bg-white p-2 shadow-xl shadow-black/10"><nav aria-label="Mobile navigation" className="space-y-1">{links.map((link) => link.external ? <a key={link.href} href={link.href} target="_blank" rel="noreferrer" className="block rounded-xl px-4 py-3 text-sm font-semibold text-foreground transition hover:bg-primary-light hover:text-primary">{link.label}</a> : <Link key={link.href} href={link.href} className="block rounded-xl px-4 py-3 text-sm font-semibold text-foreground transition hover:bg-primary-light hover:text-primary">{link.label}</Link>)}<div className="my-2 border-t border-border" />{!profile ? <><Link href="/login" className="block rounded-xl px-4 py-3 text-sm font-semibold text-foreground hover:bg-muted">Login</Link><Link href="/register" className="block rounded-xl bg-primary px-4 py-3 text-center text-sm font-bold text-white transition hover:bg-primary-dark">Get Started</Link></> : <Link href={dashboardHref} className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold text-foreground hover:bg-muted">{profile.avatarUrl ? <Image src={profile.avatarUrl} alt="" width={32} height={32} className="h-8 w-8 rounded-full object-cover" unoptimized /> : <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-extrabold text-primary">{initials(profile.name)}</span>}<span className="truncate">{profile.name}</span></Link>}</nav></div></details></div></div></header>;
 }
