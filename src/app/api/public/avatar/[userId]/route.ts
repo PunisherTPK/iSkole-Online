@@ -43,8 +43,18 @@ export async function GET(
 
     const isPublicTeacher = profile.role === "teacher" && profile.is_active !== false;
     const isOwner = user?.id === userId;
+    let isAdmin = false;
 
-    if (!isPublicTeacher && !isOwner) {
+    if (user) {
+      const { data: viewerProfile } = await admin
+        .from("profiles")
+        .select("role, is_active")
+        .eq("id", user.id)
+        .maybeSingle();
+      isAdmin = viewerProfile?.role === "admin" && viewerProfile.is_active !== false;
+    }
+
+    if (!isPublicTeacher && !isOwner && !isAdmin) {
       return new NextResponse(null, { status: 403 });
     }
 
@@ -56,8 +66,7 @@ export async function GET(
       if (markerIndex >= 0) {
         const storagePath = path.slice(markerIndex + marker.length);
         const parts = storagePath.split("/");
-        const bucketIndex = parts[0] === "public" || parts[0] === "authenticated" || parts[0] === "sign" ? 1 : 0;
-        if (parts[0] === "public" && parts.length > 1) {
+        if (parts[0] === "public" && parts.length > 2) {
           const bucket = parts[1];
           path = parts.slice(2).join("/");
           const { data, error: downloadError } = await admin.storage.from(bucket).download(path);
@@ -70,7 +79,6 @@ export async function GET(
             },
           });
         }
-        void bucketIndex;
       }
     }
 
