@@ -6,11 +6,13 @@ import { ArrowLeft, CheckCircle2, CircleAlert, Loader2, RotateCcw, Send, Trophy,
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-type Page = { id: string; title: string; description: string | null; page_type: string; is_published: boolean };
+type Page = { id: string; title: string; description: string | null; page_type: string; is_published: boolean; subject_id: string };
 type Question = { id: string; question_number: number | null; question_type: string; marks: number; order_index: number; question_image_url: string | null };
 type Detail = { question_id: string; question_number: number | null; selected_option: string | null; correct_option: string | null; is_correct: boolean; explanation: string | null; answer_image_url: string | null };
 type Result = { answered: number; correct: number; wrong: number; earnedMarks: number; totalMarks: number; isPaid: boolean; details: Detail[]; youtubeUrl: string | null };
 type PracticeUser = { id: string; role: string } | null;
+type Subject = { id: string; level_id: string };
+type Level = { id: string; curriculum_id: string };
 const OPTIONS = ["A", "B", "C", "D"] as const;
 
 export default function StudentQuestionPage() {
@@ -31,15 +33,47 @@ export default function StudentQuestionPage() {
       setLoading(true); setError("");
       if (!pageId) { setError("Question Page ID is missing."); setLoading(false); return; }
       const { data: { user } } = await supabase.auth.getUser();
+      let canPractice = false;
       if (user) {
         const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
-        if (profile?.role === "student") setPracticeUser({ id: user.id, role: profile.role });
+        if (profile?.role === "student") {
+          setPracticeUser({ id: user.id, role: profile.role });
+          canPractice = true;
+        }
       }
-      const { data: pageData, error: pageError } = await supabase.from("question_pages").select("id,title,description,page_type,is_published").eq("id", pageId).eq("is_published", true).maybeSingle();
+
+      const { data: pageData, error: pageError } = await supabase
+        .from("question_pages")
+        .select("id,title,description,page_type,is_published,subject_id")
+        .eq("id", pageId)
+        .eq("is_published", true)
+        .maybeSingle();
       if (pageError || !pageData) { setError(pageError?.message ?? "This Question Page is unavailable."); setLoading(false); return; }
+
+      const pageInfo = pageData as Page;
+
+      if (canPractice && user) {
+        const { data: subject } = await supabase.from("subjects").select("id,level_id").eq("id", pageInfo.subject_id).maybeSingle();
+        if (!subject) { setError("This Question Page is not linked to a valid subject."); setLoading(false); return; }
+        const { data: level } = await supabase.from("levels").select("id,curriculum_id").eq("id", subject.level_id).maybeSingle();
+        if (!level) { setError("This Question Page is not linked to a valid level."); setLoading(false); return; }
+        const { data: access, error: accessError } = await supabase.rpc("has_active_subject_subscription", {
+          p_user_id: user.id,
+          p_curriculum_id: level.curriculum_id,
+          p_level_id: level.id,
+          p_subject_id: subject.id,
+        });
+        if (accessError) { setError(accessError.message); setLoading(false); return; }
+        if (!access) {
+          setError("You do not have an active subscription for this subject.");
+          setLoading(false);
+          return;
+        }
+      }
+
       const { data: questionData, error: questionError } = await supabase.from("questions").select("id,question_number,question_type,marks,order_index,question_image_url").eq("question_page_id", pageId).order("order_index");
       if (questionError) { setError(questionError.message); setLoading(false); return; }
-      setPage(pageData as Page); setQuestions((questionData ?? []) as Question[]); setLoading(false);
+      setPage(pageInfo); setQuestions((questionData ?? []) as Question[]); setLoading(false);
     }
     void load();
   }, [pageId, supabase]);
@@ -56,11 +90,7 @@ export default function StudentQuestionPage() {
     setSubmitting(false); window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  function choose(questionId: string, option: string) {
-    if (!practiceUser || result) return;
-    setSelected((current) => ({ ...current, [questionId]: option }));
-  }
-
+  function choose(questionId: string, option: string) { if (!practiceUser || result) return; setSelected((current) => ({ ...current, [questionId]: option })); }
   function resetAttempt() { setSelected({}); setResult(null); setError(""); window.scrollTo({ top: 0, behavior: "smooth" }); }
   if (loading) return <div className="space-y-5"><div className="h-24 animate-pulse rounded-2xl bg-muted" /><div className="h-[560px] animate-pulse rounded-2xl bg-muted" /></div>;
   if (!page) return <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-6 text-sm text-destructive">{error || "Question Page not found."}</div>;
@@ -72,7 +102,7 @@ export default function StudentQuestionPage() {
 
   return <div className="mx-auto max-w-4xl space-y-6 pb-12">
     <div className="flex items-start justify-between gap-4"><div><button type="button" onClick={() => router.push("/question-bank")} className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Question Bank</button><p className="text-xs font-bold uppercase tracking-wider text-primary">Question Page</p><h1 className="mt-1 text-2xl font-extrabold tracking-tight sm:text-3xl">{page.title}</h1>{page.description && <p className="mt-2 text-sm text-muted-foreground">{page.description}</p>}</div></div>
-    {isPublicViewer && <div className="rounded-2xl border border-border bg-muted/40 p-4"><p className="text-sm font-bold">Preview</p><p className="mt-1 text-xs text-muted-foreground">You are viewing this Question Page publicly. Questions are available to everyone; log in as a student to practise and submit answers.</p></div>}
+    {isPublicViewer && <div className="rounded-2xl border border-border bg-muted/40 p-4"><p className="text-sm font-bold">Preview</p><p className="mt-1 text-xs text-muted-foreground">You are viewing this Question Page publicly. Questions are available to everyone; log in as a student with an active subscription to practise.</p></div>}
     {error && <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">{error}</div>}
     {result && <section className="overflow-hidden rounded-3xl border border-primary/20 bg-primary/5 p-6 sm:p-8"><div className="flex flex-col items-center text-center"><div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Trophy className="h-7 w-7" /></div><p className="mt-4 text-sm font-bold uppercase tracking-wider text-muted-foreground">Your Result</p><p className="mt-1 text-4xl font-black">{result.earnedMarks} / {result.totalMarks}</p><p className="mt-1 text-lg font-bold text-primary">{percentage}%</p><div className="mt-4 flex flex-wrap justify-center gap-2 text-xs font-semibold"><span className="rounded-full bg-emerald-500/10 px-3 py-1.5 text-emerald-600">{result.correct} correct</span><span className="rounded-full bg-destructive/10 px-3 py-1.5 text-destructive">{result.wrong} wrong</span><span className="rounded-full bg-muted px-3 py-1.5 text-muted-foreground">{questions.length - result.answered} unanswered</span></div>{!result.isPaid && <p className="mt-4 max-w-lg text-sm text-muted-foreground">Your score is shown, but answer-by-answer review, correct answers, explanations and discussion videos are available to subscribed students.</p>}<button type="button" onClick={resetAttempt} className="mt-5 inline-flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-semibold hover:bg-muted"><RotateCcw className="h-4 w-4" /> Try Again</button></div></section>}
     {practiceUser && <div className="sticky top-3 z-10 rounded-2xl border border-border bg-card/95 p-3 shadow-sm backdrop-blur sm:p-4"><div className="flex items-center justify-between gap-4 text-sm"><span className="font-bold">{result ? "Result" : "Progress"}</span><span className="font-semibold text-muted-foreground">{answeredCount} / {questions.length} answered</span></div>{!result && <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary transition-all" style={{ width: `${questions.length ? answeredCount / questions.length * 100 : 0}%` }} /></div>}</div>}
