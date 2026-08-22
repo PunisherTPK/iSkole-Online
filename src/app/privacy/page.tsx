@@ -314,7 +314,7 @@ export default function PrivacyPage() {
                   For example, authorised teacher profile information may
                   appear on the public mentors page, while student account
                   information is generally kept private and is used to
-                  provide the student's account and learning experience.
+                  provide the student&apos;s account and learning experience.
                 </p>
 
                 <p>
@@ -461,14 +461,14 @@ export default function PrivacyPage() {
 
                 <p>
                   Where a student is a minor, parents, guardians, schools
-                  or teachers may be involved in the student's use of the
+                  or teachers may be involved in the student&apos;s use of the
                   platform depending on the circumstances.
                 </p>
 
                 <p>
                   Users should not submit unnecessary sensitive information
                   about themselves or another person. Parents or guardians
-                  who have concerns about a minor's information may contact
+                  who have concerns about a minor&apos;s information may contact
                   us through the contact page.
                 </p>
               </PrivacySection>

@@ -177,7 +177,7 @@ export default function TermsPage() {
                 <p>
                   Teachers are responsible for ensuring that content they
                   submit is relevant to the intended educational purpose
-                  and does not knowingly violate another person's
+                  and does not knowingly violate another person&apos;s
                   intellectual property or other legal rights.
                 </p>
 
@@ -289,7 +289,7 @@ export default function TermsPage() {
                     </Bullet>
 
                     <Bullet>
-                      Attempt to access another user's account or
+                      Attempt to access another user&#39;s account or
                       private information.
                     </Bullet>
 
