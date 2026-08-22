@@ -67,6 +67,13 @@ export async function GET() {
       );
     }
 
+    const teachersWithAvatarUrls = (teachers ?? []).map((teacher) => ({
+      ...teacher,
+      avatar_url: teacher.avatar_url
+        ? `/api/public/avatar/${teacher.id}?v=${encodeURIComponent(teacher.avatar_url)}`
+        : null,
+    }));
+
     const levelIds = [...new Set((subjects ?? []).map((subject) => subject.level_id))];
     const { data: levels, error: levelError } = levelIds.length
       ? await admin
@@ -88,7 +95,7 @@ export async function GET() {
     if (curriculumError) throw new Error(curriculumError.message);
 
     return NextResponse.json({
-      teachers: teachers ?? [],
+      teachers: teachersWithAvatarUrls,
       assignments: assignments ?? [],
       subjects: subjects ?? [],
       levels: levels ?? [],
