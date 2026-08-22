@@ -5,8 +5,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import logo from "../../../iskole logo.png";
 
-function Logo() { return <Link href="/" aria-label="iSkole home" className="inline-flex items-center"><Image src="/iskole%20logo.png" alt="iSkole" width={150} height={48} priority className="h-9 w-auto object-contain" /></Link>; }
+function Logo() { return <Link href="/" aria-label="iSkole home" className="inline-flex items-center"><Image src={logo} alt="iSkole" width={150} height={48} priority className="h-9 w-auto object-contain" /></Link>; }
 const links = [{ label: "Home", href: "/" }, { label: "Question Bank", href: "/question-bank" }, { label: "Notes", href: "https://note-finder.vercel.app/", external: true }, { label: "Mentors", href: "/mentors" }, { label: "Pricing", href: "/pricing" }, { label: "About Us", href: "/about" }];
 const roleHome: Record<string, string> = { admin: "/admin", teacher: "/teacher", student: "/student" };
 function initials(name: string) { return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "U"; }
