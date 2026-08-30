@@ -7,6 +7,7 @@ import { ArrowRight, CheckCircle2, Mail, LockKeyhole, UserRound, Loader2 } from 
 import { createClient } from "@/lib/supabase/client";
 
 const benefits = ["Access your personalized learning space", "Practice questions and track your progress", "Discover expert mentors and subjects"];
+const SITE_URL = "https://www.iskole.online";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -27,13 +28,12 @@ export default function RegisterPage() {
     if (password !== confirmPassword) return setError("Passwords do not match.");
     setLoading(true);
     try {
-      const origin = window.location.origin;
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: normalizedEmail,
         password,
         options: {
           data: { full_name: fullName, role: "student" },
-          emailRedirectTo: `${origin}/auth/callback?next=/student`,
+          emailRedirectTo: `${SITE_URL}/auth/callback?next=/student`,
         },
       });
       if (signUpError) throw signUpError;
