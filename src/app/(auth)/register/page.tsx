@@ -27,7 +27,15 @@ export default function RegisterPage() {
     if (password !== confirmPassword) return setError("Passwords do not match.");
     setLoading(true);
     try {
-      const { data, error: signUpError } = await supabase.auth.signUp({ email: normalizedEmail, password, options: { data: { full_name: fullName, role: "student" } } });
+      const origin = window.location.origin;
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: normalizedEmail,
+        password,
+        options: {
+          data: { full_name: fullName, role: "student" },
+          emailRedirectTo: `${origin}/auth/callback?next=/student`,
+        },
+      });
       if (signUpError) throw signUpError;
       if (!data.user) throw new Error("Unable to create your account. Please try again.");
       if (data.session) { router.replace("/student"); router.refresh(); return; }
