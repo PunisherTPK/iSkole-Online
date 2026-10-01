@@ -20,7 +20,8 @@ export default function StudentQuestionPage() {
   const [page, setPage] = useState<Page | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [selected, setSelected] = useState<Record<string, string>>({});
-  const [result, setResult] = useState<Result | null>(null);\n  const [discussionUrl, setDiscussionUrl] = useState<string | null>(null);
+  const [result, setResult] = useState<Result | null>(null);
+  const [discussionUrl, setDiscussionUrl] = useState<string | null>(null);
   const [practiceUser, setPracticeUser] = useState<PracticeUser>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -52,7 +53,8 @@ export default function StudentQuestionPage() {
     const { data, error: submitError } = await supabase.rpc("submit_question_page_practice", { p_question_page_id: page.id, p_answers: selected });
     if (submitError) { setError(submitError.message); setSubmitting(false); return; }
     const raw = data as { answered: number; correct: number; wrong: number; earned_marks: number; total_marks: number; is_paid: boolean; details: Detail[]; youtube_url: string | null };
-    const normalizedDetails = (raw.details ?? []).map((detail) => ({ ...detail, explanation: detail.explanation ?? (detail as Detail).answer_text ?? null }));\n    setResult({ answered: raw.answered, correct: raw.correct, wrong: raw.wrong, earnedMarks: Number(raw.earned_marks), totalMarks: Number(raw.total_marks), isPaid: Boolean(raw.is_paid), details: normalizedDetails, youtubeUrl: raw.youtube_url ?? discussionUrl });
+    const normalizedDetails = (raw.details ?? []).map((detail) => ({ ...detail, explanation: detail.explanation ?? (detail as Detail).answer_text ?? null }));
+    setResult({ answered: raw.answered, correct: raw.correct, wrong: raw.wrong, earnedMarks: Number(raw.earned_marks), totalMarks: Number(raw.total_marks), isPaid: Boolean(raw.is_paid), details: normalizedDetails, youtubeUrl: raw.youtube_url ?? discussionUrl });
     setSubmitting(false); window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -109,7 +111,13 @@ function getYouTubeEmbedUrl(url: string | null) {
   try {
     const parsed = new URL(url);
     if (parsed.hostname.includes("youtu.be")) { const id = parsed.pathname.slice(1); return id ? `https://www.youtube.com/embed/${id}` : null; }
-    if (parsed.hostname.includes("youtube.com")) {\n      const id = parsed.searchParams.get("v");\n      if (id) return `https://www.youtube.com/embed/${id}`;\n      const parts = parsed.pathname.split("/").filter(Boolean);\n      if (parts[0] === "shorts" && parts[1]) return `https://www.youtube.com/embed/${parts[1]}`;\n      if (parts[0] === "embed" && parts[1]) return `https://www.youtube.com/embed/${parts[1]}`;\n    }
+    if (parsed.hostname.includes("youtube.com")) {
+      const id = parsed.searchParams.get("v");
+      if (id) return `https://www.youtube.com/embed/${id}`;
+      const parts = parsed.pathname.split("/").filter(Boolean);
+      if (parts[0] === "shorts" && parts[1]) return `https://www.youtube.com/embed/${parts[1]}`;
+      if (parts[0] === "embed" && parts[1]) return `https://www.youtube.com/embed/${parts[1]}`;
+    }
     return null;
   } catch { return null; }
 }
