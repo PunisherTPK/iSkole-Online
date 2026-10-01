@@ -40,6 +40,14 @@ export default function StudentQuestionPage() {
       if (pageError || !pageData) { setError(pageError?.message ?? "This Question Page is unavailable."); setLoading(false); return; }
       const { data: questionData, error: questionError } = await supabase.from("questions").select("id,question_number,question_type,marks,order_index,question_image_url").eq("question_page_id", pageId).order("order_index");
       if (questionError) { setError(questionError.message); setLoading(false); return; }
+
+      const { data: discussionData } = await supabase
+        .from("question_page_discussions")
+        .select("youtube_url")
+        .eq("question_page_id", pageId)
+        .maybeSingle();
+      setDiscussionUrl(discussionData?.youtube_url ?? null);
+
       setPage(pageData as Page); setQuestions((questionData ?? []) as Question[]); setLoading(false);
     }
     void load();
@@ -53,7 +61,30 @@ export default function StudentQuestionPage() {
     const { data, error: submitError } = await supabase.rpc("submit_question_page_practice", { p_question_page_id: page.id, p_answers: selected });
     if (submitError) { setError(submitError.message); setSubmitting(false); return; }
     const raw = data as { answered: number; correct: number; wrong: number; earned_marks: number; total_marks: number; is_paid: boolean; details: Detail[]; youtube_url: string | null };
-    const normalizedDetails = (raw.details ?? []).map((detail) => ({ ...detail, explanation: detail.explanation ?? (detail as Detail).answer_text ?? null }));
+    let normalizedDetails = (raw.details ?? []).map((detail) => ({ ...detail, explanation: detail.explanation ?? (detail as Detail).answer_text ?? null }));
+
+    if (raw.is_paid) {
+      const questionIds = questions.map((question) => question.id);
+      const { data: answerData } = await supabase
+        .from("question_answers")
+        .select("question_id,answer_text,answer_image_url,correct_option")
+        .in("question_id", questionIds);
+
+      if (answerData) {
+        const answersByQuestion = new Map(answerData.map((answer) => [answer.question_id, answer]));
+        normalizedDetails = normalizedDetails.map((detail) => {
+          const answer = answersByQuestion.get(detail.question_id);
+          return {
+            ...detail,
+            correct_option: detail.correct_option ?? answer?.correct_option ?? null,
+            answer_text: detail.answer_text ?? answer?.answer_text ?? null,
+            explanation: detail.explanation ?? detail.answer_text ?? answer?.answer_text ?? null,
+            answer_image_url: detail.answer_image_url ?? answer?.answer_image_url ?? null,
+          };
+        });
+      }
+    }
+
     setResult({ answered: raw.answered, correct: raw.correct, wrong: raw.wrong, earnedMarks: Number(raw.earned_marks), totalMarks: Number(raw.total_marks), isPaid: Boolean(raw.is_paid), details: normalizedDetails, youtubeUrl: raw.youtube_url ?? discussionUrl });
     setSubmitting(false); window.scrollTo({ top: 0, behavior: "smooth" });
   }
