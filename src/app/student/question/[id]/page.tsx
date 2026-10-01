@@ -71,7 +71,9 @@ export default function StudentQuestionPage() {
         .in("question_id", questionIds);
 
       if (answerData) {
-        const answersByQuestion = new Map(answerData.map((answer) => [answer.question_id, answer]));
+        type AnswerRow = { question_id: string; answer_text: string | null; answer_image_url: string | null; correct_option: string | null };
+        const answers = answerData as AnswerRow[];
+        const answersByQuestion = new Map(answers.map((answer) => [answer.question_id, answer]));
         normalizedDetails = normalizedDetails.map((detail) => {
           const answer = answersByQuestion.get(detail.question_id);
           return {
