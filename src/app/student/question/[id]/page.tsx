@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 
 type Page = { id: string; title: string; description: string | null; page_type: string; is_published: boolean; subject_id: string };
 type Question = { id: string; question_number: number | null; question_type: string; marks: number; order_index: number; question_image_url: string | null };
-type Detail = { question_id: string; question_number: number | null; selected_option: string | null; correct_option: string | null; is_correct: boolean; explanation: string | null; answer_image_url: string | null };
+type Detail = { question_id: string; question_number: number | null; selected_option: string | null; correct_option: string | null; is_correct: boolean; explanation: string | null; answer_text?: string | null; answer_image_url: string | null };
 type Result = { answered: number; correct: number; wrong: number; earnedMarks: number; totalMarks: number; isPaid: boolean; details: Detail[]; youtubeUrl: string | null };
 type PracticeUser = { id: string; role: string } | null;
 const OPTIONS = ["A", "B", "C", "D"] as const;
@@ -20,7 +20,7 @@ export default function StudentQuestionPage() {
   const [page, setPage] = useState<Page | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [selected, setSelected] = useState<Record<string, string>>({});
-  const [result, setResult] = useState<Result | null>(null);
+  const [result, setResult] = useState<Result | null>(null);\n  const [discussionUrl, setDiscussionUrl] = useState<string | null>(null);
   const [practiceUser, setPracticeUser] = useState<PracticeUser>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -52,7 +52,7 @@ export default function StudentQuestionPage() {
     const { data, error: submitError } = await supabase.rpc("submit_question_page_practice", { p_question_page_id: page.id, p_answers: selected });
     if (submitError) { setError(submitError.message); setSubmitting(false); return; }
     const raw = data as { answered: number; correct: number; wrong: number; earned_marks: number; total_marks: number; is_paid: boolean; details: Detail[]; youtube_url: string | null };
-    setResult({ answered: raw.answered, correct: raw.correct, wrong: raw.wrong, earnedMarks: Number(raw.earned_marks), totalMarks: Number(raw.total_marks), isPaid: Boolean(raw.is_paid), details: raw.details ?? [], youtubeUrl: raw.youtube_url });
+    const normalizedDetails = (raw.details ?? []).map((detail) => ({ ...detail, explanation: detail.explanation ?? (detail as Detail).answer_text ?? null }));\n    setResult({ answered: raw.answered, correct: raw.correct, wrong: raw.wrong, earnedMarks: Number(raw.earned_marks), totalMarks: Number(raw.total_marks), isPaid: Boolean(raw.is_paid), details: normalizedDetails, youtubeUrl: raw.youtube_url ?? discussionUrl });
     setSubmitting(false); window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -91,7 +91,7 @@ export default function StudentQuestionPage() {
               <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-wider text-primary">Question {question.question_number ?? index + 1}</p><h2 className="mt-1 text-lg font-bold">{question.marks} mark{Number(question.marks) === 1 ? "" : "s"}</h2></div>{paidReview && (isCorrect ? <CheckCircle2 className="h-6 w-6 shrink-0 text-emerald-600" /> : isIncorrect ? <XCircle className="h-6 w-6 shrink-0 text-destructive" /> : <CircleAlert className="h-6 w-6 shrink-0 text-muted-foreground" />)}</div>
               {question.question_image_url ? <Image src={question.question_image_url} alt={`Question ${question.question_number ?? index + 1}`} width={1200} height={900} sizes="(max-width: 768px) 100vw, 896px" className="mt-5 max-h-[700px] w-full rounded-xl border border-border object-contain" /> : <div className="mt-5 flex h-28 items-center justify-center rounded-xl border border-dashed border-border text-sm text-muted-foreground">Question image unavailable</div>}
               {page.page_type.toLowerCase() === "mcq" && practiceUser && <div className="mt-5 grid gap-3 sm:grid-cols-2">{OPTIONS.map((option) => { const chosenThis = chosen?.toUpperCase() === option; const correctThis = paidReview && detail.correct_option?.toUpperCase() === option; return <button key={option} type="button" onClick={() => choose(question.id, option)} disabled={Boolean(result)} className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left text-sm font-semibold transition ${chosenThis ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted/60"} ${correctThis ? "!border-emerald-500/40 !bg-emerald-500/10 !text-emerald-700" : ""} ${paidReview && chosenThis && !correctThis ? "!border-destructive/40 !bg-destructive/5 !text-destructive" : ""}`}><span className={`flex h-8 w-8 items-center justify-center rounded-full border text-xs ${chosenThis ? "border-primary bg-primary text-primary-foreground" : "border-border"}`}>{option}</span>{chosenThis ? "Selected" : `Option ${option}`}</button>; })}</div>}
-              {paidReview && page.page_type.toLowerCase() === "mcq" && <div className="mt-4 rounded-xl bg-muted/50 p-4 text-sm"><p className="font-semibold">{detail.selected_option ? `Your answer: ${detail.selected_option}` : "You did not answer this question."}</p>{detail.correct_option && <p className="mt-1 text-muted-foreground">Correct answer: <span className="font-bold text-foreground">{detail.correct_option}</span></p>}{detail.explanation && <p className="mt-3 whitespace-pre-wrap text-muted-foreground">{detail.explanation}</p>}{detail.answer_image_url && <Image src={detail.answer_image_url} alt="Answer explanation" width={1000} height={750} sizes="(max-width: 768px) 100vw, 896px" className="mt-3 max-h-[600px] w-full rounded-xl border border-border object-contain" />}</div>}
+              {paidReview && page.page_type.toLowerCase() === "mcq" && <div className="mt-4 rounded-xl bg-muted/50 p-4 text-sm"><p className="font-semibold">{detail.selected_option ? `Your answer: ${detail.selected_option}` : "You did not answer this question."}</p>{detail.correct_option && <p className="mt-1 text-muted-foreground">Correct answer: <span className="font-bold text-foreground">{detail.correct_option}</span></p>}{(detail.explanation ?? detail.answer_text) && <p className="mt-3 whitespace-pre-wrap text-muted-foreground">{detail.explanation ?? detail.answer_text}</p>}{detail.answer_image_url && <Image src={detail.answer_image_url} alt="Answer explanation" width={1000} height={750} sizes="(max-width: 768px) 100vw, 896px" className="mt-3 max-h-[600px] w-full rounded-xl border border-border object-contain" />}</div>}
             </article>
           );
         })}
@@ -99,7 +99,7 @@ export default function StudentQuestionPage() {
 
       {practiceUser && !result && questions.length > 0 && <section className="rounded-2xl border border-primary/20 bg-primary/5 p-5 sm:p-6"><div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-bold">Ready to submit?</p><p className="mt-1 text-sm text-muted-foreground">You have answered {answeredCount} of {questions.length} questions.</p></div><button type="button" onClick={() => void submit()} disabled={submitting} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground disabled:opacity-50">{submitting ? <><Loader2 className="h-4 w-4 animate-spin" /> Submitting...</> : <><Send className="h-4 w-4" /> Submit Answers</>}</button></div></section>}
 
-      {result?.isPaid && result.youtubeUrl && <section className="rounded-2xl border border-border bg-card p-5 sm:p-6"><p className="font-bold">Discussion Video</p><div className="mt-4 aspect-video overflow-hidden rounded-xl"><iframe src={getYouTubeEmbedUrl(result.youtubeUrl) ?? undefined} title="Discussion video" className="h-full w-full" allowFullScreen /></div></section>}
+      {result?.isPaid && (result.youtubeUrl ?? discussionUrl) && <section className="rounded-2xl border border-border bg-card p-5 sm:p-6"><p className="font-bold">Discussion Video</p><div className="mt-4 aspect-video overflow-hidden rounded-xl"><iframe src={getYouTubeEmbedUrl(result.youtubeUrl ?? discussionUrl) ?? undefined} title="Discussion video" className="h-full w-full" allowFullScreen /></div></section>}
     </div>
   );
 }
@@ -109,7 +109,7 @@ function getYouTubeEmbedUrl(url: string | null) {
   try {
     const parsed = new URL(url);
     if (parsed.hostname.includes("youtu.be")) { const id = parsed.pathname.slice(1); return id ? `https://www.youtube.com/embed/${id}` : null; }
-    if (parsed.hostname.includes("youtube.com")) { const id = parsed.searchParams.get("v"); return id ? `https://www.youtube.com/embed/${id}` : null; }
+    if (parsed.hostname.includes("youtube.com")) {\n      const id = parsed.searchParams.get("v");\n      if (id) return `https://www.youtube.com/embed/${id}`;\n      const parts = parsed.pathname.split("/").filter(Boolean);\n      if (parts[0] === "shorts" && parts[1]) return `https://www.youtube.com/embed/${parts[1]}`;\n      if (parts[0] === "embed" && parts[1]) return `https://www.youtube.com/embed/${parts[1]}`;\n    }
     return null;
   } catch { return null; }
 }
