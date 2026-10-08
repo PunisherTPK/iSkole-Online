@@ -41,6 +41,7 @@ type Subject = {
 };
 
 
+type PaymentAccount = { teacher_id: string; teacher_name: string; bank_name: string; account_name: string; account_number: string; branch_name: string | null; instructions: string | null };
 type PaymentSettings = {
   payment_method: string;
   qr_image_url: string | null;
@@ -81,6 +82,8 @@ export default function PaymentPage() {
 
   const [settings, setSettings] =
     useState<PaymentSettings | null>(null);
+  const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccount[]>([]);
+  const [accountsLoading, setAccountsLoading] = useState(false);
 
   const [reference, setReference] = useState("");
   const [proof, setProof] = useState<File | null>(null);
@@ -200,6 +203,27 @@ export default function PaymentPage() {
       mounted = false;
     };
   }, [supabase]);
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadAccounts() {
+      const subjectIds = cart.map((item) => item.subjectId);
+      if (plan === "subject" && subjectIds.length === 0) { setPaymentAccounts([]); return; }
+      setAccountsLoading(true);
+      const { data, error: accountError } = await supabase.rpc("get_checkout_payment_accounts", {
+        p_plan_type: plan,
+        p_subject_ids: subjectIds.length ? subjectIds : null,
+      });
+      if (!mounted) return;
+      if (accountError) setError(accountError.message);
+      setPaymentAccounts((data ?? []) as PaymentAccount[]);
+      setAccountsLoading(false);
+    }
+    void loadAccounts();
+    return () => { mounted = false; };
+  }, [supabase, plan, cart]);
+
+
 
   const availableLevels = useMemo(
     () =>
@@ -446,80 +470,40 @@ export default function PaymentPage() {
       return;
     }
 
+    if (!proof) {
+      setError("Please upload your payment receipt or transfer screenshot.");
+      return;
+    }
+
+    if (paymentAccounts.length === 0) {
+      setError("Payment account details are not configured for this purchase yet.");
+      return;
+    }
+
     setSubmitting(true);
 
     try {
       const proofUrl = await uploadProof(user.id);
 
-      /*
-       * One payment request represents the entire checkout.
-       *
-       * For a subject checkout the academic fields on the
-       * parent request remain NULL. The exact selections live
-       * in payment_request_items.
-       */
-      const { data: request, error: requestError } =
-        await supabase
-          .from("payment_requests")
-          .insert({
-            user_id: user.id,
-            plan_type: plan,
+      const items = plan === "subject" ? cart.map((item) => ({
+        curriculum_id: item.curriculumId,
+        level_id: item.levelId,
+        subject_id: item.subjectId,
+        amount: item.amount,
+      })) : [];
 
-            curriculum_id: plan === "bundle" ? curriculumId : null,
-            level_id: plan === "bundle" ? levelId : null,
-            subject_id: null,
+      const { error: requestError } = await supabase.rpc("submit_payment_request", {
+        p_plan_type: plan,
+        p_curriculum_id: plan === "bundle" ? curriculumId : null,
+        p_level_id: plan === "bundle" ? levelId : null,
+        p_amount: total,
+        p_currency: currency,
+        p_payment_reference: reference.trim(),
+        p_proof_image_url: proofUrl,
+        p_items: items,
+      });
 
-            amount: total,
-            currency,
-
-            payment_reference: reference.trim(),
-            proof_image_url: proofUrl,
-
-            status: "pending",
-          })
-          .select("id")
-          .single();
-
-      if (requestError) {
-        throw requestError;
-      }
-
-      if (!request) {
-        throw new Error(
-          "Payment request could not be created."
-        );
-      }
-
-      /*
-       * Subject cart:
-       * create one item for every selected combination.
-       */
-      if (plan === "subject") {
-        const items = cart.map((item) => ({
-          payment_request_id: request.id,
-          curriculum_id: item.curriculumId,
-          level_id: item.levelId,
-          subject_id: item.subjectId,
-          amount: item.amount,
-        }));
-
-        const { error: itemsError } = await supabase
-          .from("payment_request_items")
-          .insert(items);
-
-        if (itemsError) {
-          /*
-           * Best-effort cleanup. The request should not remain
-           * orphaned if its cart items cannot be inserted.
-           */
-          await supabase
-            .from("payment_requests")
-            .delete()
-            .eq("id", request.id);
-
-          throw itemsError;
-        }
-      }
+      if (requestError) throw requestError;
 
       setSuccess(true);
     } catch (err) {
@@ -893,7 +877,7 @@ export default function PaymentPage() {
                   <span className="text-sm font-bold">
                     Payment proof
                     <span className="ml-1 font-normal text-muted-foreground">
-                      optional
+                      required
                     </span>
                   </span>
 
@@ -1068,6 +1052,19 @@ export default function PaymentPage() {
                       "Manual payment"}
                   </p>
                 </div>
+              </div>
+
+              <div className="mt-6 rounded-2xl border border-primary/20 bg-primary/5 p-4">
+                <div className="flex items-start gap-3">
+                  <CreditCard className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <div>
+                    <p className="text-sm font-extrabold">Pay to this account</p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                      {plan === "subject" ? "The account shown belongs to the teacher assigned to your selected subject(s)." : "Premium and bundle payments are made to Gomeda, the head mentor."}
+                    </p>
+                  </div>
+                </div>
+                {accountsLoading ? <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Loading account details...</div> : paymentAccounts.length > 0 ? <div className="mt-4 space-y-3">{paymentAccounts.map((account) => <div key={account.teacher_id} className="rounded-xl border border-border bg-background p-4"><p className="text-sm font-extrabold">{account.teacher_name}</p><div className="mt-3 grid gap-2 text-xs sm:grid-cols-2"><p><span className="font-semibold text-muted-foreground">Bank:</span> {account.bank_name}</p><p><span className="font-semibold text-muted-foreground">Account name:</span> {account.account_name}</p><p><span className="font-semibold text-muted-foreground">Account number:</span> <span className="font-bold">{account.account_number}</span></p>{account.branch_name && <p><span className="font-semibold text-muted-foreground">Branch:</span> {account.branch_name}</p>}</div>{account.instructions && <p className="mt-3 whitespace-pre-wrap text-xs leading-5 text-muted-foreground">{account.instructions}</p>}</div>)}</div> : <p className="mt-4 rounded-xl bg-background p-3 text-xs text-destructive">No payment account has been configured for this purchase yet.</p>}
               </div>
 
               {settings?.qr_image_url && (
