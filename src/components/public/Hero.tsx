@@ -43,10 +43,10 @@ export default function Hero() {
               <Image
                 src="/icons/android-chrome-512x512.png"
                 alt="iSkole"
-                width={180}
-                height={180}
+                width={306}
+                height={306}
                 priority
-                className="hidden shrink-0 object-contain sm:block lg:h-[190px] lg:w-[190px]"
+                className="hidden shrink-0 object-contain sm:block lg:h-[323px] lg:w-[323px]"
               />
             </div>
 
