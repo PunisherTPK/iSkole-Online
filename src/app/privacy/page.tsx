@@ -15,13 +15,13 @@ import Footer from "@/components/public/Footer";
 
 export default function PrivacyPage() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-transparent text-foreground">
       <Navbar />
 
       <main>
         {/* HERO */}
         <section className="relative overflow-hidden border-b border-border/60">
-          <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.08] via-background to-background" />
+          <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.06] via-transparent to-transparent" />
 
           <div className="relative mx-auto max-w-[1440px] px-5 pb-14 pt-14 sm:px-8 sm:pb-18 sm:pt-20">
             <div className="mx-auto max-w-3xl text-center">
