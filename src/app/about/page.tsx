@@ -24,7 +24,7 @@ export default function AboutPage() {
         <section className="relative overflow-hidden border-b border-border/60">
           <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.08] via-background to-background" />
 
-          <div className="relative mx-auto max-w-7xl px-5 pb-16 pt-16 sm:px-8 sm:pb-20 sm:pt-24">
+          <div className="relative mx-auto max-w-[1440px] px-5 pb-16 pt-16 sm:px-8 sm:pb-20 sm:pt-24">
             <div className="mx-auto max-w-4xl text-center">
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-xl shadow-primary/20">
                 <Sparkles className="h-6 w-6" />
@@ -70,7 +70,7 @@ export default function AboutPage() {
         </section>
 
         {/* INTRO */}
-        <section className="mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-20">
+        <section className="mx-auto max-w-[1440px] px-5 py-16 sm:px-8 sm:py-20">
           <div className="grid gap-10 lg:grid-cols-[1fr_1.15fr] lg:items-center">
             <div>
               <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-primary">
@@ -126,7 +126,7 @@ export default function AboutPage() {
 
         {/* MISSION */}
         <section className="border-y border-border bg-primary/[0.035]">
-          <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-20">
+          <div className="mx-auto max-w-[1440px] px-5 py-16 sm:px-8 sm:py-20">
             <div className="mx-auto max-w-3xl text-center">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                 <Lightbulb className="h-5 w-5" />
@@ -153,7 +153,7 @@ export default function AboutPage() {
         </section>
 
         {/* VALUES */}
-        <section className="mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-20">
+        <section className="mx-auto max-w-[1440px] px-5 py-16 sm:px-8 sm:py-20">
           <div className="mb-10 max-w-2xl">
             <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-primary">
               What matters to us
@@ -186,7 +186,7 @@ export default function AboutPage() {
         </section>
 
         {/* TEACHERS */}
-        <section className="mx-auto max-w-7xl px-5 pb-16 sm:px-8 sm:pb-20">
+        <section className="mx-auto max-w-[1440px] px-5 pb-16 sm:px-8 sm:pb-20">
           <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
             <div className="grid lg:grid-cols-[1.2fr_0.8fr]">
               <div className="p-7 sm:p-10">
@@ -233,7 +233,7 @@ export default function AboutPage() {
 
         {/* CTA */}
         <section className="border-t border-border">
-          <div className="mx-auto max-w-7xl px-5 py-16 text-center sm:px-8 sm:py-20">
+          <div className="mx-auto max-w-[1440px] px-5 py-16 text-center sm:px-8 sm:py-20">
             <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-primary">
               Start learning
             </p>
