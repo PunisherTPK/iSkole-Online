@@ -141,7 +141,7 @@ export default function Hero() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-2.5">
-                    <div className="rounded-xl border border-border bg-transparent p-3">
+                    <div className="rounded-xl border border-border bg-background p-3">
                       <div className="mb-2 flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
                         <BookOpen className="h-3.5 w-3.5" />
                       </div>
@@ -155,7 +155,7 @@ export default function Hero() {
                       </p>
                     </div>
 
-                    <div className="rounded-xl border border-border bg-transparent p-3">
+                    <div className="rounded-xl border border-border bg-background p-3">
                       <div className="mb-2 flex h-7 w-7 items-center justify-center rounded-lg bg-violet-100 text-violet-600">
                         <GraduationCap className="h-3.5 w-3.5" />
                       </div>
@@ -170,7 +170,7 @@ export default function Hero() {
                     </div>
                   </div>
 
-                  <div className="mt-3 rounded-xl border border-border bg-transparent p-3.5">
+                  <div className="mt-3 rounded-xl border border-border bg-background p-3.5">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-[9px] font-medium text-muted-foreground">
