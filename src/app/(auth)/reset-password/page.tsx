@@ -1,4 +1,8 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import {
   ArrowRight,
   CheckCircle2,
@@ -6,6 +10,39 @@ import {
 } from "lucide-react";
 
 export default function ResetPasswordPage() {
+  const supabase = createClient();
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error: updateError } = await supabase.auth.updateUser({ password });
+      if (updateError) throw updateError;
+      setMessage("Your password has been updated successfully. You can now sign in with your new password.");
+      setPassword("");
+      setConfirmPassword("");
+    } catch (updateError) {
+      setError(updateError instanceof Error ? updateError.message : "Unable to update your password. Please request a new reset link.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="relative min-h-[calc(100vh-64px)] overflow-hidden">
       <div
@@ -36,7 +73,7 @@ export default function ResetPasswordPage() {
             Choose a strong password you haven&apos;t used elsewhere.
           </p>
 
-          <form className="mt-8 space-y-5">
+          <form onSubmit={handleSubmit} className="mt-8 space-y-5">
             <div>
               <label
                 htmlFor="password"
@@ -58,6 +95,9 @@ export default function ResetPasswordPage() {
                   autoComplete="new-password"
                   placeholder="Enter your new password"
                   required
+                  minLength={8}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
                   className="h-11 w-full rounded-xl border border-input bg-background pl-10 pr-4 text-sm text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-primary focus:ring-4 focus:ring-primary/10"
                 />
               </div>
@@ -84,6 +124,9 @@ export default function ResetPasswordPage() {
                   autoComplete="new-password"
                   placeholder="Confirm your new password"
                   required
+                  minLength={8}
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
                   className="h-11 w-full rounded-xl border border-input bg-background pl-10 pr-4 text-sm text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-primary focus:ring-4 focus:ring-primary/10"
                 />
               </div>
@@ -107,11 +150,10 @@ export default function ResetPasswordPage() {
               </ul>
             </div>
 
-            <button
-              type="submit"
-              className="button-primary h-11 w-full"
-            >
-              Update Password
+            {message && <div role="status" className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 text-sm leading-5 text-emerald-700">{message}</div>}
+            {error && <div role="alert" className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm leading-5 text-destructive">{error}</div>}
+            <button type="submit" disabled={loading} className="button-primary h-11 w-full disabled:pointer-events-none disabled:opacity-60">
+              {loading ? "Updating..." : "Update Password"}
               <ArrowRight className="h-4 w-4" />
             </button>
           </form>
