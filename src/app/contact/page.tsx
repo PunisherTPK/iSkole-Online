@@ -43,7 +43,7 @@ export default function ContactPage() {
       <main>
         <section className="relative overflow-hidden border-b border-border/60">
           <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.08] via-background to-background" />
-          <div className="relative mx-auto max-w-7xl px-5 pb-14 pt-14 sm:px-8 sm:pb-18 sm:pt-20">
+          <div className="relative mx-auto max-w-[1440px] px-5 pb-14 pt-14 sm:px-8 sm:pb-18 sm:pt-20">
             <div className="mx-auto max-w-3xl text-center">
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-xl shadow-primary/20"><MessageSquare className="h-6 w-6" /></div>
               <p className="mt-6 text-xs font-extrabold uppercase tracking-[0.2em] text-primary">Contact iSkole</p>
@@ -53,7 +53,7 @@ export default function ContactPage() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-7xl px-5 py-12 sm:px-8 sm:py-16 lg:py-20">
+        <section className="mx-auto max-w-[1440px] px-5 py-12 sm:px-8 sm:py-16 lg:py-20">
           <div className="grid gap-6 lg:grid-cols-[0.75fr_1.25fr]">
             <aside className="rounded-3xl border border-border bg-card p-6 shadow-sm sm:p-8">
               <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-primary">Get in touch</p>
@@ -86,7 +86,7 @@ export default function ContactPage() {
           </div>
         </section>
 
-        <section className="border-t border-border bg-primary/[0.035]"><div className="mx-auto max-w-7xl px-5 py-14 text-center sm:px-8 sm:py-16"><h2 className="text-2xl font-black tracking-tight sm:text-3xl">Ready to start learning?</h2><p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-muted-foreground">You don&apos;t need to wait. Explore the Question Bank and start practising today.</p><Link href="/question-bank" className="button-primary mt-6 inline-flex items-center gap-2">Explore Question Bank<ArrowRight className="h-4 w-4" /></Link></div></section>
+        <section className="border-t border-border bg-primary/[0.035]"><div className="mx-auto max-w-[1440px] px-5 py-14 text-center sm:px-8 sm:py-16"><h2 className="text-2xl font-black tracking-tight sm:text-3xl">Ready to start learning?</h2><p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-muted-foreground">You don&apos;t need to wait. Explore the Question Bank and start practising today.</p><Link href="/question-bank" className="button-primary mt-6 inline-flex items-center gap-2">Explore Question Bank<ArrowRight className="h-4 w-4" /></Link></div></section>
       </main>
       <Footer />
     </div>
