@@ -34,34 +34,33 @@ body::before {
   content: "";
   position: fixed;
   inset: 0;
-  z-index: -2;
+  z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(700px 520px at 4% 4%, hsl(262 83% 58% / 0.14), transparent 70%),
-    radial-gradient(650px 500px at 96% 12%, hsl(195 85% 58% / 0.11), transparent 68%),
-    radial-gradient(700px 600px at 78% 92%, hsl(280 80% 65% / 0.09), transparent 72%),
-    linear-gradient(135deg, hsl(250 35% 98%), hsl(252 45% 97%));
+    radial-gradient(620px 480px at 0% 0%, hsl(262 83% 58% / 0.18), transparent 68%),
+    radial-gradient(600px 460px at 100% 8%, hsl(195 85% 58% / 0.15), transparent 68%),
+    radial-gradient(700px 520px at 85% 100%, hsl(280 80% 65% / 0.13), transparent 70%);
 }
 body::after {
-  content: "π   ∑   E=mc²      λ      √x      ∫      F=ma      Δ   •   π      ∞";
+  content: "π     ∑        E=mc²          λ       √x        ∫          F=ma       Δ          ∞";
   position: fixed;
-  inset: 0;
-  z-index: -1;
+  inset: -8% -5%;
+  z-index: 0;
   pointer-events: none;
-  overflow: hidden;
-  padding: 7rem 3vw 3rem;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(1.1rem, 1.7vw, 1.7rem);
-  line-height: 5.5;
-  letter-spacing: 0.8rem;
-  word-spacing: 1.5rem;
-  color: hsl(var(--primary) / 0.055);
+  font-size: clamp(1.3rem, 2vw, 2rem);
+  line-height: 7;
+  letter-spacing: 0.9rem;
+  word-spacing: 1.2rem;
+  color: hsl(var(--primary) / 0.10);
   white-space: pre-wrap;
-  transform: rotate(-7deg) scale(1.08);
-  transform-origin: center;
-  mask-image: linear-gradient(to bottom, transparent, black 12%, black 86%, transparent);
+  transform: rotate(-8deg);
+  mask-image: linear-gradient(to bottom, transparent 4%, black 15%, black 85%, transparent 96%);
 }
-
+body > * {
+  position: relative;
+  z-index: 1;
+}
 button, input, textarea, select { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
 a { color: inherit; text-decoration: none; }
