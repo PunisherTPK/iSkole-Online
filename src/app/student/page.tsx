@@ -6,8 +6,8 @@ import { ArrowRight, BookOpen, FileText, Loader2, Trophy } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 type Page = { id: string; title: string; description: string | null; page_type: string; subject_id: string };
-type Subject = { id: string; name: string; code: string | null };
-type Subscription = { subject_id: string | null; status: string; starts_at: string; ends_at: string | null; plan_type: string };
+type Subject = { id: string; name: string; code: string | null; level_id: string };
+type Subscription = { subject_id: string | null; curriculum_id: string | null; level_id: string | null; status: string; starts_at: string; ends_at: string | null; plan_type: string };
 type Practice = { question_page_id: string; total_questions: number; answered_questions: number; correct_questions: number; earned_marks: number; total_marks: number; completed_at: string };
 
 export default function StudentPage() {
@@ -38,27 +38,36 @@ export default function StudentPage() {
       setAllPractice(practiceRows);
 
       const now = new Date().toISOString();
-      const { data: subscriptionData, error: subscriptionError } = await supabase.from("student_subscriptions").select("subject_id,status,starts_at,ends_at,plan_type").eq("user_id", user.id).eq("status", "active").lte("starts_at", now).or(`ends_at.is.null,ends_at.gt.${now}`);
+      const { data: subscriptionData, error: subscriptionError } = await supabase.from("student_subscriptions").select("subject_id,curriculum_id,level_id,status,starts_at,ends_at,plan_type").eq("user_id", user.id).eq("status", "active").lte("starts_at", now).or(`ends_at.is.null,ends_at.gt.${now}`);
       if (subscriptionError) { setError(subscriptionError.message); setLoading(false); return; }
       const subscriptions = (subscriptionData ?? []) as Subscription[];
       const hasAllSubjectsSubscription = subscriptions.some((subscription) => subscription.plan_type === "premium" || subscription.subject_id === null);
-      const subscribedSubjectIds = new Set(subscriptions.map((subscription) => subscription.subject_id).filter((id): id is string => Boolean(id)));
+      const subscribedSubjectIds = new Set(subscriptions.filter((subscription) => subscription.plan_type === "subject").map((subscription) => subscription.subject_id).filter((id): id is string => Boolean(id)));
+      const subscribedBundleLevelIds = new Set(subscriptions.filter((subscription) => subscription.plan_type === "bundle").map((subscription) => subscription.level_id).filter((id): id is string => Boolean(id)));
 
-      if (!hasAllSubjectsSubscription && subscribedSubjectIds.size === 0) {
+      if (!hasAllSubjectsSubscription && subscribedSubjectIds.size === 0 && subscribedBundleLevelIds.size === 0) {
         setPages([]); setSubjects({}); setPractice({}); setLoading(false); return;
       }
 
-      let pageQuery = supabase.from("question_pages").select("id,title,description,page_type,subject_id").eq("is_published", true).order("created_at", { ascending: false }).limit(50);
-      if (!hasAllSubjectsSubscription) pageQuery = pageQuery.in("subject_id", [...subscribedSubjectIds]);
-      const { data: pageData, error: pageError } = await pageQuery;
+      const { data: pageData, error: pageError } = await supabase
+        .from("question_pages")
+        .select("id,title,description,page_type,subject_id")
+        .eq("is_published", true)
+        .order("created_at", { ascending: false })
+        .limit(100);
       if (pageError) { setError(pageError.message); setLoading(false); return; }
-      const pageRows = (pageData ?? []) as Page[];
-      const subjectIds = [...new Set(pageRows.map((page) => page.subject_id))];
-      if (subjectIds.length) {
-        const { data: subjectData, error: subjectError } = await supabase.from("subjects").select("id,name,code").in("id", subjectIds);
-        if (subjectError) { setError(subjectError.message); setLoading(false); return; }
-        setSubjects(Object.fromEntries(((subjectData ?? []) as Subject[]).map((subject) => [subject.id, subject])));
-      } else setSubjects({});
+      const rawPageRows = (pageData ?? []) as Page[];
+      const subjectIds = [...new Set(rawPageRows.map((page) => page.subject_id))];
+      const { data: subjectData, error: subjectError } = subjectIds.length
+        ? await supabase.from("subjects").select("id,name,code,level_id").in("id", subjectIds)
+        : { data: [] as Subject[], error: null };
+      if (subjectError) { setError(subjectError.message); setLoading(false); return; }
+      const subjectRows = (subjectData ?? []) as Subject[];
+      const subjectMap = new Map(subjectRows.map((subject) => [subject.id, subject]));
+      const pageRows = hasAllSubjectsSubscription
+        ? rawPageRows
+        : rawPageRows.filter((page) => subscribedSubjectIds.has(page.subject_id) || subscribedBundleLevelIds.has(subjectMap.get(page.subject_id)?.level_id ?? ""));
+      setSubjects(Object.fromEntries(subjectRows.map((subject) => [subject.id, subject])));
 
       const pageIds = new Set(pageRows.map((page) => page.id));
       const latestByPage: Record<string, Practice> = {};
