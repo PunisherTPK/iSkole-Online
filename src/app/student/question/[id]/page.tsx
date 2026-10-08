@@ -66,8 +66,17 @@ export default function StudentQuestionPage() {
             .eq("user_id", user.id)
             .eq("status", "active")
             .lte("starts_at", new Date().toISOString());
+          type SubscriptionRow = {
+            plan_type: string;
+            curriculum_id: string | null;
+            level_id: string | null;
+            subject_id: string | null;
+            status: string;
+            starts_at: string | null;
+            ends_at: string | null;
+          };
           const now = Date.now();
-          setHasAccess((subscriptionRows ?? []).some((sub) => {
+          setHasAccess(((subscriptionRows ?? []) as SubscriptionRow[]).some((sub) => {
             const active = !sub.ends_at || new Date(sub.ends_at).getTime() > now;
             return active && (
               sub.plan_type === "premium" ||
