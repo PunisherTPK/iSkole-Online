@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -26,9 +27,14 @@ export default function AboutPage() {
 
           <div className="relative mx-auto max-w-[1440px] px-5 pb-16 pt-16 sm:px-8 sm:pb-20 sm:pt-24">
             <div className="mx-auto max-w-4xl text-center">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-xl shadow-primary/20">
-                <Sparkles className="h-6 w-6" />
-              </div>
+              <Image
+                src="/icons/android-chrome-512x512.png"
+                alt="iSkole"
+                width={112}
+                height={112}
+                priority
+                className="mx-auto h-14 w-14 rounded-2xl object-contain shadow-xl shadow-primary/20"
+              />
 
               <p className="mt-6 text-xs font-extrabold uppercase tracking-[0.2em] text-primary">
                 About iSkole
