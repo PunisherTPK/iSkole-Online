@@ -17,7 +17,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body><div className="site-background" aria-hidden="true"><div className="site-background-pattern">π     ∑        E=mc²          λ       √x        ∫          F=ma       Δ          ∞</div></div><div className="site-content">{children}</div></body>
+      <body><div className="site-background" aria-hidden="true"><div className="site-background-pattern"><span className="symbol symbol-a">π</span><span className="symbol symbol-b">∑</span><span className="symbol symbol-c">E=mc²</span><span className="symbol symbol-d">λ</span><span className="symbol symbol-e">∫</span><span className="symbol symbol-f">F=ma</span><span className="symbol symbol-g">∞</span></div></div><div className="site-content">{children}</div></body>
     </html>
   );
 }
