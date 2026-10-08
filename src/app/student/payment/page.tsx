@@ -48,6 +48,7 @@ type PaymentSettings = {
   instructions: string | null;
   subject_price: number | null;
   premium_price: number | null;
+  bundle_price: number | null;
   currency: string;
   is_active: boolean;
 };
