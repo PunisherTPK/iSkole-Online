@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, CheckCircle2, CircleAlert, Loader2, RotateCcw, Send, Trophy, XCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, CircleAlert, Loader2, RotateCcw, Send, Trophy, XCircle, CreditCard } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -22,6 +22,8 @@ export default function StudentQuestionPage() {
   const [selected, setSelected] = useState<Record<string, string>>({});
   const [result, setResult] = useState<Result | null>(null);
   const [discussionUrl, setDiscussionUrl] = useState<string | null>(null);
+  const [hasAccess, setHasAccess] = useState(false);
+  const [subjectContext, setSubjectContext] = useState<{ curriculumId: string; levelId: string; subjectId: string } | null>(null);
   const [practiceUser, setPracticeUser] = useState<PracticeUser>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -47,6 +49,34 @@ export default function StudentQuestionPage() {
         .eq("question_page_id", pageId)
         .maybeSingle();
       setDiscussionUrl(discussionData?.youtube_url ?? null);
+
+      const { data: subjectData } = await supabase
+        .from("subjects")
+        .select("id,level_id,levels!inner(id,curriculum_id)")
+        .eq("id", pageData.subject_id)
+        .maybeSingle();
+      const level = Array.isArray(subjectData?.levels) ? subjectData.levels[0] : subjectData?.levels;
+      if (subjectData?.id && level?.id && level?.curriculum_id) {
+        const context = { curriculumId: level.curriculum_id as string, levelId: level.id as string, subjectId: subjectData.id as string };
+        setSubjectContext(context);
+        if (user) {
+          const { data: subscriptionRows } = await supabase
+            .from("student_subscriptions")
+            .select("plan_type,curriculum_id,level_id,subject_id,status,starts_at,ends_at")
+            .eq("user_id", user.id)
+            .eq("status", "active")
+            .lte("starts_at", new Date().toISOString());
+          const now = Date.now();
+          setHasAccess((subscriptionRows ?? []).some((sub) => {
+            const active = !sub.ends_at || new Date(sub.ends_at).getTime() > now;
+            return active && (
+              sub.plan_type === "premium" ||
+              (sub.plan_type === "subject" && sub.curriculum_id === context.curriculumId && sub.level_id === context.levelId && sub.subject_id === context.subjectId) ||
+              (sub.plan_type === "bundle" && sub.curriculum_id === context.curriculumId && sub.level_id === context.levelId)
+            );
+          }));
+        }
+      }
 
       setPage(pageData as Page); setQuestions((questionData ?? []) as Question[]); setLoading(false);
     }
@@ -103,11 +133,11 @@ export default function StudentQuestionPage() {
   const detailMap = Object.fromEntries((result?.details ?? []).map((d) => [d.question_id, d]));
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 pb-12">
+    <div className="w-full space-y-6 px-4 pb-12 sm:px-6 lg:px-8">
       <div className="flex items-start justify-between gap-4"><div><button type="button" onClick={() => router.push("/question-bank")} className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Question Bank</button><p className="text-xs font-bold uppercase tracking-wider text-primary">Question Page</p><h1 className="mt-1 text-2xl font-extrabold tracking-tight sm:text-3xl">{page.title}</h1>{page.description && <p className="mt-2 text-sm text-muted-foreground">{page.description}</p>}</div></div>
 
       {isPublicViewer && <div className="rounded-2xl border border-border bg-muted/40 p-4"><p className="text-sm font-bold">Preview</p><p className="mt-1 text-xs text-muted-foreground">You are viewing this Question Page publicly. Questions are available to everyone; log in as a student to practise.</p></div>}
-      {practiceUser && !result && <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4"><p className="text-sm font-bold">Practice mode</p><p className="mt-1 text-xs text-muted-foreground">You can practise this paper for free. Subscription unlocks answer-by-answer review, explanations, and discussion videos.</p></div>}
+      {practiceUser && !result && <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4"><div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-bold">Practice mode</p><p className="mt-1 text-xs text-muted-foreground">You can practise this paper for free. Subscription unlocks answer-by-answer review, explanations, and discussion videos.</p></div>{!hasAccess && subjectContext && <button type="button" onClick={() => router.push(`/student/payment?plan=subject&curriculumId=${subjectContext.curriculumId}&levelId=${subjectContext.levelId}&subjectId=${subjectContext.subjectId}`)} className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground"><CreditCard className="h-4 w-4" /> Subscribe</button>}</div></div>}
       {error && <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">{error}</div>}
 
       {result && <section className="overflow-hidden rounded-3xl border border-primary/20 bg-primary/5 p-6 sm:p-8"><div className="flex flex-col items-center text-center"><div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Trophy className="h-7 w-7" /></div><p className="mt-4 text-sm font-bold uppercase tracking-wider text-muted-foreground">Your Result</p><p className="mt-1 text-4xl font-black">{result.earnedMarks} / {result.totalMarks}</p><p className="mt-1 text-lg font-bold text-primary">{percentage}%</p><div className="mt-4 flex flex-wrap justify-center gap-2 text-xs font-semibold"><span className="rounded-full bg-emerald-500/10 px-3 py-1.5 text-emerald-600">{result.correct} correct</span><span className="rounded-full bg-destructive/10 px-3 py-1.5 text-destructive">{result.wrong} wrong</span><span className="rounded-full bg-muted px-3 py-1.5 text-muted-foreground">{questions.length - result.answered} unanswered</span></div>{!result.isPaid && <p className="mt-4 max-w-lg text-sm text-muted-foreground">Your score is shown, but answer-by-answer review, correct answers, explanations and discussion videos are available to subscribed students.</p>}<button type="button" onClick={resetAttempt} className="mt-5 inline-flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-semibold hover:bg-muted"><RotateCcw className="h-4 w-4" /> Try Again</button></div></section>}
