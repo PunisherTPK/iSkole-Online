@@ -1,4 +1,8 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import {
   ArrowLeft,
   ArrowRight,
@@ -7,6 +11,37 @@ import {
 } from "lucide-react";
 
 export default function ForgotPasswordPage() {
+  const supabase = createClient();
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+    setLoading(true);
+
+    try {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+        email.trim().toLowerCase(),
+        { redirectTo: "https://www.iskole.online/auth/callback?next=/reset-password" },
+      );
+
+      if (resetError) throw resetError;
+      setMessage("If an account exists for that email address, you will receive a password reset link shortly.");
+    } catch (resetError) {
+      setError(
+        resetError instanceof Error
+          ? resetError.message
+          : "Unable to send the reset link. Please try again.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="relative min-h-[calc(100vh-64px)] overflow-hidden">
       <div
@@ -38,7 +73,7 @@ export default function ForgotPasswordPage() {
             send you a link to reset your password.
           </p>
 
-          <form className="mt-8 space-y-5">
+          <form onSubmit={handleSubmit} className="mt-8 space-y-5">
             <div>
               <label
                 htmlFor="email"
@@ -60,16 +95,22 @@ export default function ForgotPasswordPage() {
                   autoComplete="email"
                   placeholder="you@example.com"
                   required
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
                   className="h-11 w-full rounded-xl border border-input bg-background pl-10 pr-4 text-sm text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-primary focus:ring-4 focus:ring-primary/10"
                 />
               </div>
             </div>
 
+            {message && <div role="status" className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 text-sm leading-5 text-emerald-700">{message}</div>}
+            {error && <div role="alert" className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm leading-5 text-destructive">{error}</div>}
+
             <button
               type="submit"
-              className="button-primary h-11 w-full"
+              disabled={loading}
+              className="button-primary h-11 w-full disabled:pointer-events-none disabled:opacity-60"
             >
-              Send Reset Link
+              {loading ? "Sending..." : "Send Reset Link"}
               <ArrowRight className="h-4 w-4" />
             </button>
           </form>
