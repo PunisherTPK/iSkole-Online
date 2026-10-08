@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, CreditCard, Info, Loader2, Save, ShieldCheck, Upload } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
-type Settings = { id: string; payment_method: string; qr_image_url: string | null; account_name: string | null; instructions: string | null; is_active: boolean; subject_price: number | null; premium_price: number | null; currency: string };\ntype Bundle = { id: string; name: string; curriculum_id: string; level_id: string; price: number; currency: string; is_active: boolean };
+type Settings = { id: string; payment_method: string; qr_image_url: string | null; account_name: string | null; instructions: string | null; is_active: boolean; subject_price: number | null; premium_price: number | null; currency: string };
+type Bundle = { id: string; name: string; curriculum_id: string; level_id: string; price: number; currency: string; is_active: boolean };
 
 export default function PaymentSettingsPage() {
   const supabase = useMemo(() => createClient(), []);
