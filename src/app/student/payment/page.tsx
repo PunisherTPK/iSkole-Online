@@ -249,13 +249,17 @@ export default function PaymentPage() {
     settings?.premium_price ?? 0
   );
 
+  const selectedBundle = bundles.find(
+    (bundle) => bundle.curriculum_id === curriculumId && bundle.level_id === levelId
+  );
+
   const cartTotal = cart.reduce(
     (total, item) => total + item.amount,
     0
   );
 
   const total =
-    plan === "premium" ? premiumPrice : cartTotal;
+    plan === "premium" ? premiumPrice : plan === "bundle" ? Number(selectedBundle?.price ?? 0) : cartTotal;
 
   const formattedTotal = `${currency} ${total.toLocaleString(
     "en-LK"
