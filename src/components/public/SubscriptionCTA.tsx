@@ -13,7 +13,7 @@ const benefits = [
 
 export default function SubscriptionCTA() {
   return (
-    <section className="section-padding bg-card">
+    <section className="section-padding bg-transparent">
       <div className="container-site">
         <div className="relative overflow-hidden rounded-[2rem] bg-primary px-6 py-10 text-white shadow-brand-lg sm:px-10 sm:py-12 lg:px-14">
           {/* Decorative shapes */}
