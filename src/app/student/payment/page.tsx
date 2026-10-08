@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -1041,16 +1040,9 @@ export default function PaymentPage() {
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
                   <CreditCard className="h-5 w-5" />
                 </div>
-
                 <div>
-                  <p className="text-xs font-semibold text-muted-foreground">
-                    Payment method
-                  </p>
-
-                  <p className="font-extrabold">
-                    {settings?.payment_method ||
-                      "Manual payment"}
-                  </p>
+                  <p className="text-xs font-semibold text-muted-foreground">Payment method</p>
+                  <p className="font-extrabold">Manual bank transfer</p>
                 </div>
               </div>
 
@@ -1064,81 +1056,41 @@ export default function PaymentPage() {
                     </p>
                   </div>
                 </div>
-                {accountsLoading ? <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Loading account details...</div> : paymentAccounts.length > 0 ? <div className="mt-4 space-y-3">{paymentAccounts.map((account) => <div key={account.teacher_id} className="rounded-xl border border-border bg-background p-4"><p className="text-sm font-extrabold">{account.teacher_name}</p><div className="mt-3 grid gap-2 text-xs sm:grid-cols-2"><p><span className="font-semibold text-muted-foreground">Bank:</span> {account.bank_name}</p><p><span className="font-semibold text-muted-foreground">Account name:</span> {account.account_name}</p><p><span className="font-semibold text-muted-foreground">Account number:</span> <span className="font-bold">{account.account_number}</span></p>{account.branch_name && <p><span className="font-semibold text-muted-foreground">Branch:</span> {account.branch_name}</p>}</div>{account.instructions && <p className="mt-3 whitespace-pre-wrap text-xs leading-5 text-muted-foreground">{account.instructions}</p>}</div>)}</div> : <p className="mt-4 rounded-xl bg-background p-3 text-xs text-destructive">No payment account has been configured for this purchase yet.</p>}
+
+                {accountsLoading ? (
+                  <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Loading account details...</div>
+                ) : paymentAccounts.length > 0 ? (
+                  <div className="mt-4 space-y-3">
+                    {paymentAccounts.map((account) => (
+                      <div key={account.teacher_id} className="rounded-xl border border-border bg-background p-4">
+                        <p className="text-sm font-extrabold">{account.teacher_name}</p>
+                        <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+                          <p><span className="font-semibold text-muted-foreground">Bank:</span> {account.bank_name}</p>
+                          <p><span className="font-semibold text-muted-foreground">Account name:</span> {account.account_name}</p>
+                          <p><span className="font-semibold text-muted-foreground">Account number:</span> <span className="font-bold">{account.account_number}</span></p>
+                          {account.branch_name && <p><span className="font-semibold text-muted-foreground">Branch:</span> {account.branch_name}</p>}
+                        </div>
+                        {account.instructions && <p className="mt-3 whitespace-pre-wrap text-xs leading-5 text-muted-foreground">{account.instructions}</p>}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-4 rounded-xl bg-background p-3 text-xs text-destructive">No payment account has been configured for this purchase yet.</p>
+                )}
               </div>
-
-              {settings?.qr_image_url && (
-                <div className="mt-6 overflow-hidden rounded-2xl border border-border bg-white p-4">
-                  <Image
-                    src={settings.qr_image_url}
-                    alt="Payment QR code"
-                    width={420}
-                    height={420}
-                    className="mx-auto aspect-square w-full max-w-xs object-contain"
-                    unoptimized
-                  />
-                </div>
-              )}
-
-              {settings?.account_name && (
-                <div className="mt-5 rounded-2xl bg-muted/40 p-4">
-                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Account
-                  </p>
-
-                  <p className="mt-1 text-sm font-bold">
-                    {settings.account_name}
-                  </p>
-                </div>
-              )}
-
-              {settings?.instructions && (
-                <div className="mt-5">
-                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Instructions
-                  </p>
-
-                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
-                    {settings.instructions}
-                  </p>
-                </div>
-              )}
 
               <button
                 type="button"
-                disabled={
-                  submitting ||
-                  !settings?.is_active ||
-                  (plan === "subject" && cart.length === 0) ||
-                  (plan === "premium" &&
-                    premiumPrice <= 0) ||
-                  (plan === "bundle" && (!bundleSelectionComplete || bundlePrice <= 0))
-                }
-                onClick={() =>
-                  void submitPaymentRequest()
-                }
+                disabled={submitting || !settings?.is_active || paymentAccounts.length === 0 || (plan === "subject" && cart.length === 0) || (plan === "premium" && premiumPrice <= 0) || (plan === "bundle" && (!bundleSelectionComplete || bundlePrice <= 0))}
+                onClick={() => void submitPaymentRequest()}
                 className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {submitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Submitting...
-                  </>
-                ) : (
-                  <>
-                    Submit payment request
-                    <ArrowRight className="h-4 w-4" />
-                  </>
-                )}
+                {submitting ? <><Loader2 className="h-4 w-4 animate-spin" />Submitting...</> : <>Submit payment request <ArrowRight className="h-4 w-4" /></>}
               </button>
 
-              {plan === "subject" &&
-                cart.length === 0 && (
-                  <p className="mt-3 text-center text-xs text-muted-foreground">
-                    Add at least one subject to continue.
-                  </p>
-                )}
+              {plan === "subject" && cart.length === 0 && <p className="mt-3 text-center text-xs text-muted-foreground">Add at least one subject to continue.</p>}
             </section>
+
           </aside>
         </div>
       </div>
