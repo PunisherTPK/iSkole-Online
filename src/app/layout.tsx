@@ -9,9 +9,9 @@ export const metadata: Metadata = {
   description:
     "iSkole is an online learning platform for students to learn, practice, and achieve their academic goals.",
   icons: {
-    icon: "/iskole_logo_i.png",
-    shortcut: "/iskole_logo_i.png",
-    apple: "/iskole_logo_i.png",
+    icon: "/icons/favicon.ico",
+    shortcut: "/icons/favicon.ico",
+    apple: "/icons/apple-touch-icon.png",
   },
 };
 
