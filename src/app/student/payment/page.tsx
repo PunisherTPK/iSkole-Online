@@ -97,7 +97,8 @@ export default function PaymentPage() {
 
     if (
       requestedPlan === "premium" ||
-      requestedPlan === "subject"
+      requestedPlan === "subject" ||
+      requestedPlan === "bundle"
     ) {
       setPlan(requestedPlan);
       const requestedCurriculum = params.get("curriculumId");
@@ -133,6 +134,7 @@ export default function PaymentPage() {
         levelResult,
         subjectResult,
         settingsResult,
+        bundleResult,
       ] = await Promise.all([
         supabase
           .from("curriculums")
@@ -159,6 +161,12 @@ export default function PaymentPage() {
           )
           .limit(1)
           .maybeSingle(),
+
+        supabase
+          .from("subscription_bundles")
+          .select("id,curriculum_id,level_id,name,description,price,currency,is_active")
+          .eq("is_active", true)
+          .order("name"),
       ]);
 
       if (!mounted) return;
@@ -416,7 +424,17 @@ export default function PaymentPage() {
       return;
     }
 
-    if (plan === "bundle" && !selectedBundle) {\n      setError("Please select a curriculum and level with an active bundle.");\n      return;\n    }\n\n    if (plan === "bundle" && Number(selectedBundle?.price ?? 0) <= 0) {\n      setError("Bundle pricing is currently unavailable.");\n      return;\n    }\n\n    if (plan === "premium" && premiumPrice <= 0) || (plan === "bundle" && !selectedBundle) {
+    if (plan === "bundle" && !selectedBundle) {
+      setError("Please select a curriculum and level with an active bundle.");
+      return;
+    }
+
+    if (plan === "bundle" && Number(selectedBundle?.price ?? 0) <= 0) {
+      setError("Bundle pricing is currently unavailable.");
+      return;
+    }
+
+    if (plan === "premium" && premiumPrice <= 0) {
       setError(
         "Premium pricing is currently unavailable."
       );
@@ -456,8 +474,8 @@ export default function PaymentPage() {
             user_id: user.id,
             plan_type: plan,
 
-            curriculum_id: null,
-            level_id: null,
+            curriculum_id: plan === "bundle" ? curriculumId : null,
+            level_id: plan === "bundle" ? levelId : null,
             subject_id: null,
 
             amount: total,
@@ -957,7 +975,9 @@ export default function PaymentPage() {
 
               {/* This is the ONLY scrollable area in the summary */}
               <div className="mt-5 max-h-[min(45vh,420px)] space-y-2 overflow-y-auto pr-1">
-                {plan === "bundle" ? (\n                  <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4"><div className="flex items-start gap-3"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><BookIcon /></div><div className="min-w-0"><p className="text-sm font-extrabold">{selectedBundle?.name || "Curriculum + Level bundle"}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{selectedBundle?.description || "All active subjects in this curriculum and level"}</p></div><span className="ml-auto shrink-0 text-sm font-bold">{currency} {Number(selectedBundle?.price ?? 0).toLocaleString("en-LK")}</span></div></div>\n                ) : plan === "premium" ? (
+                {plan === "bundle" ? (
+                  <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4"><div className="flex items-start gap-3"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><BookIcon /></div><div className="min-w-0"><p className="text-sm font-extrabold">{selectedBundle?.name || "Curriculum + Level bundle"}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{selectedBundle?.description || "All active subjects in this curriculum and level"}</p></div><span className="ml-auto shrink-0 text-sm font-bold">{currency} {Number(selectedBundle?.price ?? 0).toLocaleString("en-LK")}</span></div></div>
+                ) : plan === "premium" ? (
                   <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4">
                     <div className="flex items-start gap-3">
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
