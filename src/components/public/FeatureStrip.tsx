@@ -30,7 +30,7 @@ const features = [
 
 export default function FeatureStrip() {
   return (
-    <section className="border-b border-border bg-card">
+    <section className="border-b border-border bg-transparent">
       <div className="container-site py-8 sm:py-10">
         <div className="grid divide-y divide-border sm:grid-cols-2 sm:divide-y-0 lg:grid-cols-4 lg:divide-x lg:divide-y-0">
           {features.map((feature) => {
