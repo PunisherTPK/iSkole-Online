@@ -336,6 +336,14 @@ export default function QuestionPageEditor() {
     }
   }
 
+  async function handleQuestionPaste(event: React.ClipboardEvent<HTMLDivElement>, question: Question) {
+    const imageItem = Array.from(event.clipboardData.items).find((item) => item.type.startsWith("image/"));
+    if (!imageItem) return;
+    event.preventDefault();
+    const file = imageItem.getAsFile();
+    if (file) await handleQuestionImage(question, file);
+  }
+
   async function handleQuestionImage(question: Question, file: File) {
     setUploading("question");
     setError("");
@@ -460,8 +468,8 @@ export default function QuestionPageEditor() {
                 <label className="text-sm font-semibold">Paper Code<input value={selected.paper_code ?? ""} onChange={(e) => updateQuestion(selected.id, { paper_code: e.target.value })} className={inputClass} placeholder="Optional" /></label>
                 <label className="text-sm font-semibold">Marks<input type="number" min="0" step="0.5" value={selected.marks} onChange={(e) => updateQuestion(selected.id, { marks: Number(e.target.value) })} className={inputClass} /></label>
               </div>
-              <div className="rounded-2xl border border-border p-4">
-                <div className="flex items-center justify-between gap-3"><div><h3 className="text-sm font-bold">Question Image</h3><p className="mt-1 text-xs text-muted-foreground">Upload the complete question, including choices if it is an MCQ.</p></div><label className={`inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-semibold ${uploading ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-muted"}`}><Upload className="h-4 w-4" /> {uploading === "question" ? "Uploading..." : "Upload"}<input type="file" accept="image/*" disabled={uploading !== null || deletingPage} className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleQuestionImage(selected, file); e.currentTarget.value = ""; }} /></label></div>
+              <div className="rounded-2xl border border-border p-4 outline-none focus-within:border-primary/30" tabIndex={0} onPaste={(event) => { if (selected) void handleQuestionPaste(event, selected); }}>
+                <div className="flex items-center justify-between gap-3"><div><h3 className="text-sm font-bold">Question Image</h3><p className="mt-1 text-xs text-muted-foreground">Upload the complete question, including choices if it is an MCQ. You can also paste an image here with Ctrl+V.</p></div><label className={`inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-semibold ${uploading ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-muted"}`}><Upload className="h-4 w-4" /> {uploading === "question" ? "Uploading..." : "Upload"}<input type="file" accept="image/*" disabled={uploading !== null || deletingPage} className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleQuestionImage(selected, file); e.currentTarget.value = ""; }} /></label></div>
                 {uploading === "question" && <div className="mt-4 rounded-xl bg-muted/50 p-3"><div className="flex items-center gap-3 text-xs font-semibold"><Loader2 className="h-4 w-4 animate-spin text-primary" /> Uploading question image...</div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full w-1/2 animate-pulse rounded-full bg-primary" /></div></div>}
                 {selected.question_image_url ? <img src={selected.question_image_url} alt={`Question ${selected.question_number ?? 1}`} className="mt-4 max-h-[560px] w-full rounded-xl border border-border object-contain" /> : !uploading && <div className="mt-4 flex h-36 items-center justify-center rounded-xl border border-dashed border-border text-xs text-muted-foreground">No question image uploaded</div>}
               </div>
