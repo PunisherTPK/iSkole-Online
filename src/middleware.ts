@@ -50,9 +50,11 @@ export async function middleware(request: NextRequest) {
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   ) && !isPublicQuestionPage;
 
-  const isAuthRoute = authRoutes.some(
-    (route) => pathname === route || pathname.startsWith(`${route}/`),
-  );
+  const isAuthRoute =
+    pathname !== "/reset-password" &&
+    authRoutes.some(
+      (route) => pathname === route || pathname.startsWith(route + "/"),
+    );
 
   if (isProtectedRoute && !user) {
     const loginUrl = new URL("/login", request.url);
