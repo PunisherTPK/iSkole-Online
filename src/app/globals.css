@@ -37,7 +37,7 @@ a { color: inherit; text-decoration: none; }
 :focus-visible { outline: 3px solid hsl(var(--ring) / 0.25); outline-offset: 2px; }
 
 @layer components {
-  .container-site { width: min(100% - 2rem, 1200px); margin-inline: auto; }
+  .container-site { width: min(100% - 2rem, 1440px); margin-inline: auto; }
   .section-padding { padding-block: 5rem; }
   .text-gradient { background: linear-gradient(135deg, hsl(var(--primary)), hsl(271 76% 60%)); -webkit-background-clip: text; background-clip: text; color: transparent; }
   .surface { border: 1px solid hsl(var(--border)); background: hsl(var(--card)); box-shadow: 0 1px 2px rgb(15 23 42 / 0.03), 0 12px 32px rgb(15 23 42 / 0.04); }
@@ -63,7 +63,7 @@ input[placeholder*="Search questions, subjects, topics or papers"] { padding-lef
 
 @media (max-width: 640px) {
   .section-padding { padding-block: 3.5rem; }
-  .container-site { width: min(100% - 1.5rem, 1200px); }
+  .container-site { width: min(100% - 1.5rem, 1440px); }
 }
 
 @media (prefers-reduced-motion: reduce) {
