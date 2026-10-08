@@ -29,47 +29,51 @@
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body { margin: 0; background: hsl(var(--background)); color: hsl(var(--foreground)); font-family: var(--font-inter); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
-body { margin: 0; background: hsl(var(--background)); color: hsl(var(--foreground)); font-family: var(--font-inter); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+
 .site-background {
   position: fixed;
   inset: 0;
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
-  background: linear-gradient(135deg, hsl(250 35% 98%), hsl(252 45% 97%));
+  background:
+    radial-gradient(circle at 8% 5%, hsl(262 83% 58% / 0.10), transparent 30%),
+    radial-gradient(circle at 92% 18%, hsl(195 85% 58% / 0.08), transparent 30%),
+    linear-gradient(135deg, hsl(250 35% 98%), hsl(252 45% 97%));
 }
-.site-background::before,
+
+.site-background::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(hsl(var(--primary) / 0.10) 0.8px, transparent 0.8px);
+  background-size: 32px 32px;
+  mask-image: linear-gradient(to bottom, black, transparent 72%);
+  opacity: 0.45;
+}
+
 .site-background::after {
   content: "";
   position: absolute;
+  width: 55vw;
+  height: 55vw;
+  right: -20vw;
+  top: 22vh;
   border-radius: 999px;
-  filter: blur(55px);
+  background: hsl(195 85% 58% / 0.10);
+  filter: blur(80px);
 }
-.site-background::before {
-  width: 52vw;
-  height: 52vw;
-  left: -18vw;
-  top: -20vw;
-  background: hsl(262 83% 58% / 0.22);
-}
-.site-background::after {
-  width: 48vw;
-  height: 48vw;
-  right: -15vw;
-  top: 8vh;
-  background: hsl(195 85% 58% / 0.18);
-}
+
 .site-background-pattern {
   position: absolute;
-  inset: -10%;
-  transform: rotate(-7deg);
+  inset: 0;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(1.4rem, 2.2vw, 2.2rem);
-  line-height: 7;
-  letter-spacing: 0.9rem;
-  word-spacing: 1.2rem;
-  color: hsl(var(--primary) / 0.13);
+  font-size: clamp(1.2rem, 1.8vw, 1.8rem);
+  line-height: 1;
+  letter-spacing: 0;
+  color: hsl(var(--primary) / 0.045);
   white-space: pre-wrap;
+  opacity: 0.8;
 }
 .site-content { position: relative; z-index: 1; }
 button, input, textarea, select { font: inherit; }
