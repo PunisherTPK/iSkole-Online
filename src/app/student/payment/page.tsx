@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
-type Plan = "subject" | "premium";
+type Plan = "subject" | "bundle" | "premium";
 
 type Curriculum = {
   id: string;
@@ -39,6 +39,8 @@ type Subject = {
   code: string | null;
   level_id: string;
 };
+
+type Bundle = { id: string; curriculum_id: string; level_id: string; name: string; description: string | null; price: number; currency: string; is_active: boolean; };
 
 type PaymentSettings = {
   payment_method: string;
@@ -70,6 +72,7 @@ export default function PaymentPage() {
   const [curriculums, setCurriculums] = useState<Curriculum[]>([]);
   const [levels, setLevels] = useState<Level[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [bundles, setBundles] = useState<Bundle[]>([]);
 
   const [curriculumId, setCurriculumId] = useState("");
   const [levelId, setLevelId] = useState("");
@@ -97,6 +100,12 @@ export default function PaymentPage() {
       requestedPlan === "subject"
     ) {
       setPlan(requestedPlan);
+      const requestedCurriculum = params.get("curriculumId");
+      const requestedLevel = params.get("levelId");
+      const requestedSubject = params.get("subjectId");
+      if (requestedCurriculum) setCurriculumId(requestedCurriculum);
+      if (requestedLevel) setLevelId(requestedLevel);
+      if (requestedSubject) setSubjectId(requestedSubject);
     }
   }, []);
 
@@ -158,7 +167,8 @@ export default function PaymentPage() {
         curriculumResult.error ||
         levelResult.error ||
         subjectResult.error ||
-        settingsResult.error;
+        settingsResult.error ||
+        bundleResult.error;
 
       if (queryError) {
         setError(
@@ -175,6 +185,7 @@ export default function PaymentPage() {
 
       setLevels((levelResult.data ?? []) as Level[]);
       setSubjects((subjectResult.data ?? []) as Subject[]);
+      setBundles((bundleResult.data ?? []) as Bundle[]);
 
       setSettings(
         settingsResult.data
@@ -405,7 +416,7 @@ export default function PaymentPage() {
       return;
     }
 
-    if (plan === "premium" && premiumPrice <= 0) {
+    if (plan === "bundle" && !selectedBundle) {\n      setError("Please select a curriculum and level with an active bundle.");\n      return;\n    }\n\n    if (plan === "bundle" && Number(selectedBundle?.price ?? 0) <= 0) {\n      setError("Bundle pricing is currently unavailable.");\n      return;\n    }\n\n    if (plan === "premium" && premiumPrice <= 0) || (plan === "bundle" && !selectedBundle) {
       setError(
         "Premium pricing is currently unavailable."
       );
@@ -615,7 +626,7 @@ export default function PaymentPage() {
                 Choose your access
               </h2>
 
-              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <div className="mt-6 grid gap-3 md:grid-cols-3">
                 <button
                   type="button"
                   onClick={() => selectPlan("subject")}
@@ -649,6 +660,28 @@ export default function PaymentPage() {
                     {subjectPrice.toLocaleString("en-LK")}{" "}
                     / subject
                   </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => selectPlan("bundle")}
+                  className={`relative rounded-2xl border p-5 text-left transition ${
+                    plan === "bundle"
+                      ? "border-primary bg-primary/5 shadow-sm"
+                      : "border-border hover:border-primary/30"
+                  }`}
+                >
+                  {plan === "bundle" && (
+                    <span className="absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                      <Check className="h-3.5 w-3.5" />
+                    </span>
+                  )}
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <BookIcon />
+                  </div>
+                  <p className="mt-4 font-extrabold">Curriculum + Level</p>
+                  <p className="mt-1 text-sm leading-5 text-muted-foreground">Get every active subject in a curriculum and level.</p>
+                  <p className="mt-4 text-sm font-bold text-primary">Choose bundle below</p>
                 </button>
 
                 <button
@@ -803,6 +836,19 @@ export default function PaymentPage() {
               </section>
             )}
 
+            {plan === "bundle" && (
+              <section className="rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-7">
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Step 02</p>
+                <h2 className="mt-1 text-xl font-extrabold">Choose your bundle</h2>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">Select a curriculum and level to unlock every active subject for 30 days.</p>
+                <div className="mt-6 grid gap-4">
+                  <SelectField label="Curriculum" value={curriculumId} onChange={handleCurriculumChange} placeholder="Select curriculum" disabled={false} options={curriculums.map((item) => ({ value: item.id, label: item.name }))} />
+                  <SelectField label="Level" value={levelId} onChange={handleLevelChange} placeholder={curriculumId ? "Select level" : "Select curriculum first"} disabled={!curriculumId} options={availableLevels.map((item) => ({ value: item.id, label: item.name }))} />
+                  {selectedBundle ? <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4"><div className="flex items-start justify-between gap-4"><div><p className="font-extrabold">{selectedBundle.name}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{selectedBundle.description || "All active subjects in this curriculum and level."}</p></div><p className="shrink-0 text-lg font-black text-primary">{currency} {Number(selectedBundle.price).toLocaleString("en-LK")}</p></div></div> : <p className="rounded-xl bg-muted/40 p-4 text-xs text-muted-foreground">{levelId ? "No active bundle is available for this curriculum and level." : "Select a level to see available bundles."}</p>}
+                </div>
+              </section>
+            )}
+
             {/* PAYMENT */}
             <section className="rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-7">
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
@@ -911,7 +957,7 @@ export default function PaymentPage() {
 
               {/* This is the ONLY scrollable area in the summary */}
               <div className="mt-5 max-h-[min(45vh,420px)] space-y-2 overflow-y-auto pr-1">
-                {plan === "premium" ? (
+                {plan === "bundle" ? (\n                  <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4"><div className="flex items-start gap-3"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><BookIcon /></div><div className="min-w-0"><p className="text-sm font-extrabold">{selectedBundle?.name || "Curriculum + Level bundle"}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{selectedBundle?.description || "All active subjects in this curriculum and level"}</p></div><span className="ml-auto shrink-0 text-sm font-bold">{currency} {Number(selectedBundle?.price ?? 0).toLocaleString("en-LK")}</span></div></div>\n                ) : plan === "premium" ? (
                   <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4">
                     <div className="flex items-start gap-3">
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
