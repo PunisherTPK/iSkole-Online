@@ -68,12 +68,21 @@ body { margin: 0; background: hsl(var(--background)); color: hsl(var(--foregroun
   position: absolute;
   inset: 0;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(1.2rem, 1.8vw, 1.8rem);
-  line-height: 1;
-  letter-spacing: 0;
-  color: hsl(var(--primary) / 0.045);
-  white-space: pre-wrap;
+  color: hsl(var(--primary) / 0.055);
+}
+.site-background-pattern .symbol {
+  position: absolute;
+  font-size: clamp(1.1rem, 1.8vw, 1.7rem);
+  font-weight: 600;
   opacity: 0.8;
+}
+.site-background-pattern .symbol-a { left: 5%; top: 18%; }
+.site-background-pattern .symbol-b { right: 7%; top: 34%; }
+.site-background-pattern .symbol-c { left: 9%; top: 67%; font-size: clamp(1rem, 1.5vw, 1.45rem); }
+.site-background-pattern .symbol-d { right: 14%; top: 74%; }
+.site-background-pattern .symbol-e { left: 47%; top: 14%; }
+.site-background-pattern .symbol-f { right: 4%; top: 10%; font-size: clamp(1rem, 1.5vw, 1.45rem); }
+.site-background-pattern .symbol-g { left: 52%; top: 86%; }
 }
 .site-content { position: relative; z-index: 1; }
 button, input, textarea, select { font: inherit; }
