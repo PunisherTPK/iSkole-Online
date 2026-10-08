@@ -32,7 +32,7 @@ const steps = [
 
 export default function HowItWorks() {
   return (
-    <section className="section-padding bg-background">
+    <section className="section-padding bg-transparent">
       <div className="container-site">
         {/* Heading */}
         <div className="mx-auto max-w-2xl text-center">
