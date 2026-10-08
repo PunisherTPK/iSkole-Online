@@ -7,12 +7,14 @@ import Navbar from "@/components/public/Navbar";
 import Footer from "@/components/public/Footer";
 import { createClient } from "@/lib/supabase/client";
 
-type Pricing = { subjectPrice: number | null; premiumPrice: number | null; currency: string; active: boolean };\ntype Bundle = { id: string; name: string; curriculum_id: string; level_id: string; price: number; currency: string; description: string | null };
+type Pricing = { subjectPrice: number | null; premiumPrice: number | null; currency: string; active: boolean };
+type Bundle = { id: string; name: string; curriculum_id: string; level_id: string; price: number; currency: string; description: string | null };
 
 export default function PricingPage() {
   const [pricing, setPricing] = useState<Pricing>({ subjectPrice: null, premiumPrice: null, currency: "LKR", active: true });
   const [loading, setLoading] = useState(true);
-  const [loggedIn, setLoggedIn] = useState(false);\n  const [bundles, setBundles] = useState<Bundle[]>([]);
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [bundles, setBundles] = useState<Bundle[]>([]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -24,7 +26,8 @@ export default function PricingPage() {
           .limit(1)
           .maybeSingle(),
 
-        supabase.auth.getUser(),\n        supabase.from("subscription_bundles").select("id,name,curriculum_id,level_id,price,currency,description").eq("is_active", true).order("name"),
+        supabase.auth.getUser(),
+        supabase.from("subscription_bundles").select("id,name,curriculum_id,level_id,price,currency,description").eq("is_active", true).order("name"),
       ]);
 
       if (data) {
@@ -36,7 +39,8 @@ export default function PricingPage() {
         });
       }
 
-      setBundles((bundleData ?? []) as Bundle[]);\n      setLoggedIn(Boolean(auth.user));
+      setBundles((bundleData ?? []) as Bundle[]);
+      setLoggedIn(Boolean(auth.user));
       setLoading(false);
     }
     void load();
