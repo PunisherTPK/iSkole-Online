@@ -1127,7 +1127,8 @@ export default function PaymentPage() {
                   !settings?.is_active ||
                   (plan === "subject" && cart.length === 0) ||
                   (plan === "premium" &&
-                    premiumPrice <= 0)
+                    premiumPrice <= 0) ||
+                  (plan === "bundle" && !selectedBundle)
                 }
                 onClick={() =>
                   void submitPaymentRequest()
