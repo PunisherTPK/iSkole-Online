@@ -359,7 +359,15 @@ export default function QuestionPageEditor() {
     }
   }
 
-  async function handleAnswerPaste(event: React.ClipboardEvent<HTMLDivElement>, question: Question) {\n    const imageItem = Array.from(event.clipboardData.items).find((item) => item.type.startsWith("image/"));\n    if (!imageItem) return;\n    event.preventDefault();\n    const file = imageItem.getAsFile();\n    if (file) await handleAnswerImage(question, file);\n  }\n\n  async function handleAnswerImage(question: Question, file: File) {
+  async function handleAnswerPaste(event: React.ClipboardEvent<HTMLDivElement>, question: Question) {
+    const imageItem = Array.from(event.clipboardData.items).find((item) => item.type.startsWith("image/"));
+    if (!imageItem) return;
+    event.preventDefault();
+    const file = imageItem.getAsFile();
+    if (file) await handleAnswerImage(question, file);
+  }
+
+  async function handleAnswerImage(question: Question, file: File) {
     setUploading("answer");
     setError("");
     try {
