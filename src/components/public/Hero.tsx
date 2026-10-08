@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -30,13 +31,24 @@ export default function Hero() {
               ONLINE LEARNING PLATFORM
             </div>
 
-            <h1 className="font-heading text-5xl font-extrabold leading-[1.04] tracking-[-0.045em] text-foreground sm:text-6xl lg:text-[4.5rem]">
-              Learn.
-              <br />
-              Practice.
-              <br />
-              <span className="text-gradient">Succeed.</span>
-            </h1>
+            <div className="flex items-center gap-6 sm:gap-8 lg:gap-10">
+              <h1 className="font-heading text-5xl font-extrabold leading-[1.04] tracking-[-0.045em] text-foreground sm:text-6xl lg:text-[4.5rem]">
+                Learn.
+                <br />
+                Practice.
+                <br />
+                <span className="text-gradient">Succeed.</span>
+              </h1>
+
+              <Image
+                src="/icons/android-chrome-512x512.png"
+                alt="iSkole"
+                width={180}
+                height={180}
+                priority
+                className="hidden shrink-0 object-contain sm:block lg:h-[190px] lg:w-[190px]"
+              />
+            </div>
 
             <p className="mt-7 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
               Learn from expert mentors, practice with quality questions, and
