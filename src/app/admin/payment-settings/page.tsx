@@ -5,7 +5,6 @@ import { CheckCircle2, CreditCard, Info, Loader2, Save, ShieldCheck, Upload } fr
 import { createClient } from "@/lib/supabase/client";
 
 type Settings = { id: string; payment_method: string; qr_image_url: string | null; account_name: string | null; instructions: string | null; is_active: boolean; subject_price: number | null; premium_price: number | null; bundle_price: number | null; currency: string };
-type Bundle = { id: string; name: string; curriculum_id: string; level_id: string; price: number; currency: string; is_active: boolean };
 
 export default function PaymentSettingsPage() {
   const supabase = useMemo(() => createClient(), []);
@@ -14,15 +13,6 @@ export default function PaymentSettingsPage() {
   useEffect(() => { let mounted = true; async function load() { const { data, error: loadError } = await supabase.from("payment_settings").select("*").limit(1).maybeSingle(); if (!mounted) return; if (loadError) setError(loadError.message || "Unable to load payment settings."); if (data) { const s = data as Settings; setSettings(s); setPaymentMethod(s.payment_method || "LankaQR"); setAccountName(s.account_name || ""); setInstructions(s.instructions || ""); setSubjectPrice(s.subject_price?.toString() || ""); setPremiumPrice(s.premium_price?.toString() || ""); setBundlePrice(s.bundle_price?.toString() || ""); setCurrency(s.currency || "LKR"); setIsActive(s.is_active); setQrUrl(s.qr_image_url || ""); } setLoading(false); } void load(); return () => { mounted = false; }; }, [supabase]);
 
   async function uploadQr(file: File) { setError(""); setMessage(""); if (!file.type.startsWith("image/")) { setError("Please select an image file."); return; } if (file.size > 5 * 1024 * 1024) { setError("QR image must be 5 MB or smaller."); return; } setUploading(true); const form = new FormData(); form.append("file", file); try { const response = await fetch("/api/admin/payment-qr", { method: "POST", body: form }); const result = await response.json(); if (!response.ok) throw new Error(result.error || "QR upload failed."); setQrUrl(result.url); setMessage("QR image uploaded. Save settings to apply it."); } catch (uploadError) { setError(uploadError instanceof Error ? uploadError.message : "QR upload failed."); } finally { setUploading(false); } }
-
-  /* Bundle pricing is global; students choose the curriculum and level at checkout. */
-  async function saveBundle(bundle: Bundle) {
-    setError(""); setMessage("");
-    const { data, error: bundleError } = await supabase.from("subscription_bundles").update({ price: Number(bundle.price), is_active: bundle.is_active, updated_at: new Date().toISOString() }).eq("id", bundle.id).select("id,name,curriculum_id,level_id,price,currency,is_active").single();
-    if (bundleError) { setError(bundleError.message); return; }
-    setBundles((current) => current.map((item) => item.id === bundle.id ? data as Bundle : item));
-    setMessage("Bundle pricing saved.");
-  }
 
   async function save() { setSaving(true); setError(""); setMessage(""); const payload = { payment_method: paymentMethod.trim() || "LankaQR", qr_image_url: qrUrl || null, account_name: accountName.trim() || null, instructions: instructions.trim() || null, is_active: isActive, subject_price: subjectPrice === "" ? null : Number(subjectPrice), premium_price: premiumPrice === "" ? null : Number(premiumPrice), bundle_price: bundlePrice === "" ? null : Number(bundlePrice), currency: currency.trim().toUpperCase() || "LKR" }; if (payload.subject_price !== null && (!Number.isFinite(payload.subject_price) || payload.subject_price < 0)) { setError("Enter a valid subject price."); setSaving(false); return; } if (payload.premium_price !== null && (!Number.isFinite(payload.premium_price) || payload.premium_price < 0)) { setError("Enter a valid premium price."); setSaving(false); return; } if (payload.bundle_price !== null && (!Number.isFinite(payload.bundle_price) || payload.bundle_price < 0)) { setError("Enter a valid bundle price."); setSaving(false); return; } const result = settings?.id ? await supabase.from("payment_settings").update(payload).eq("id", settings.id).select("*").single() : await supabase.from("payment_settings").insert(payload).select("*").single(); if (result.error) setError(result.error.message); else { setSettings(result.data as Settings); setMessage("Payment settings saved successfully."); } setSaving(false); }
 
