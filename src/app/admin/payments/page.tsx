@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Check, ChevronDown, CreditCard, ExternalLink, Loader2, Search, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
-type RequestRow = { id: string; user_id: string; plan_type: "subject" | "bundle" | "premium"; amount: number; currency: string; status: string; payment_reference: string | null; proof_image_url: string | null; admin_note: string | null; created_at: string; reviewed_at: string | null };
+type RequestRow = { id: string; user_id: string; plan_type: "subject" | "bundle" | "premium"; curriculum_id: string | null; level_id: string | null; amount: number; currency: string; status: string; payment_reference: string | null; proof_image_url: string | null; admin_note: string | null; created_at: string; reviewed_at: string | null };
 type User = { id: string; full_name: string | null; email: string | null };
 type Item = { payment_request_id: string; curriculum_id: string; level_id: string; subject_id: string; amount: number };
 type Subject = { id: string; name: string; code: string | null };
@@ -29,7 +29,7 @@ export default function AdminPaymentsPage() {
   async function load() {
     setLoading(true); setError("");
     const [r, i, u, s, c, l] = await Promise.all([
-      supabase.from("payment_requests").select("id,user_id,plan_type,amount,currency,status,payment_reference,proof_image_url,admin_note,created_at,reviewed_at").order("created_at", { ascending: false }),
+      supabase.from("payment_requests").select("id,user_id,plan_type,curriculum_id,level_id,amount,currency,status,payment_reference,proof_image_url,admin_note,created_at,reviewed_at").order("created_at", { ascending: false }),
       supabase.from("payment_request_items").select("payment_request_id,curriculum_id,level_id,subject_id,amount"),
       supabase.rpc("admin_list_users"),
       supabase.from("subjects").select("id,name,code"),
