@@ -83,7 +83,6 @@ body { margin: 0; background: hsl(var(--background)); color: hsl(var(--foregroun
 .site-background-pattern .symbol-e { left: 47%; top: 14%; }
 .site-background-pattern .symbol-f { right: 4%; top: 10%; font-size: clamp(1rem, 1.5vw, 1.45rem); }
 .site-background-pattern .symbol-g { left: 52%; top: 86%; }
-}
 .site-content { position: relative; z-index: 1; }
 button, input, textarea, select { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
