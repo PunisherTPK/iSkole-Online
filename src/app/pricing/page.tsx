@@ -19,10 +19,10 @@ export default function PricingPage() {
   useEffect(() => {
     const supabase = createClient();
     async function load() {
-      const [{ data }, { data: auth }, { data: bundleData }] = await Promise.all([
+      const [{ data }, { data: auth }] = await Promise.all([
         supabase
           .from("payment_settings")
-          .select("subject_price,premium_price,currency,is_active")
+          .select("subject_price,premium_price,bundle_price,currency,is_active")
           .limit(1)
           .maybeSingle(),
 
