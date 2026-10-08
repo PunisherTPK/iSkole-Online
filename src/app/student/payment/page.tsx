@@ -40,7 +40,6 @@ type Subject = {
   level_id: string;
 };
 
-type Bundle = { id: string; curriculum_id: string; level_id: string; name: string; description: string | null; price: number; currency: string; is_active: boolean; };
 
 type PaymentSettings = {
   payment_method: string;
@@ -72,7 +71,6 @@ export default function PaymentPage() {
   const [curriculums, setCurriculums] = useState<Curriculum[]>([]);
   const [levels, setLevels] = useState<Level[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [bundles, setBundles] = useState<Bundle[]>([]);
 
   const [curriculumId, setCurriculumId] = useState("");
   const [levelId, setLevelId] = useState("");
@@ -134,7 +132,6 @@ export default function PaymentPage() {
         levelResult,
         subjectResult,
         settingsResult,
-        bundleResult,
       ] = await Promise.all([
         supabase
           .from("curriculums")
@@ -157,16 +154,11 @@ export default function PaymentPage() {
         supabase
           .from("payment_settings")
           .select(
-            "payment_method,qr_image_url,account_name,instructions,subject_price,premium_price,currency,is_active"
+            "payment_method,qr_image_url,account_name,instructions,subject_price,premium_price,bundle_price,currency,is_active"
           )
           .limit(1)
           .maybeSingle(),
 
-        supabase
-          .from("subscription_bundles")
-          .select("id,curriculum_id,level_id,name,description,price,currency,is_active")
-          .eq("is_active", true)
-          .order("name"),
       ]);
 
       if (!mounted) return;
@@ -175,8 +167,7 @@ export default function PaymentPage() {
         curriculumResult.error ||
         levelResult.error ||
         subjectResult.error ||
-        settingsResult.error ||
-        bundleResult.error;
+        settingsResult.error;
 
       if (queryError) {
         setError(
@@ -193,8 +184,6 @@ export default function PaymentPage() {
 
       setLevels((levelResult.data ?? []) as Level[]);
       setSubjects((subjectResult.data ?? []) as Subject[]);
-      setBundles((bundleResult.data ?? []) as Bundle[]);
-
       setSettings(
         settingsResult.data
           ? (settingsResult.data as PaymentSettings)
@@ -249,25 +238,22 @@ export default function PaymentPage() {
     settings?.premium_price ?? 0
   );
 
-  const selectedBundle = bundles.find(
-    (bundle) => bundle.curriculum_id === curriculumId && bundle.level_id === levelId
-  );
-
   const cartTotal = cart.reduce(
     (total, item) => total + item.amount,
     0
   );
 
+  const bundlePrice = Number(settings?.bundle_price ?? 0);
+
   const total =
-    plan === "premium" ? premiumPrice : plan === "bundle" ? Number(selectedBundle?.price ?? 0) : cartTotal;
+    plan === "premium" ? premiumPrice : plan === "bundle" ? bundlePrice : cartTotal;
 
   const formattedTotal = `${currency} ${total.toLocaleString(
     "en-LK"
   )}`;
 
-  const selectionComplete = Boolean(
-    curriculumId && levelId && subjectId
-  );
+  const selectionComplete = Boolean(curriculumId && levelId && subjectId);
+  const bundleSelectionComplete = Boolean(curriculumId && levelId);
 
   const alreadyInCart = cart.some(
     (item) =>
@@ -428,12 +414,12 @@ export default function PaymentPage() {
       return;
     }
 
-    if (plan === "bundle" && !selectedBundle) {
-      setError("Please select a curriculum and level with an active bundle.");
+    if (plan === "bundle" && !bundleSelectionComplete) {
+      setError("Please select a curriculum and level.");
       return;
     }
 
-    if (plan === "bundle" && Number(selectedBundle?.price ?? 0) <= 0) {
+    if (plan === "bundle" && bundlePrice <= 0) {
       setError("Bundle pricing is currently unavailable.");
       return;
     }
@@ -703,7 +689,7 @@ export default function PaymentPage() {
                   </div>
                   <p className="mt-4 font-extrabold">Curriculum + Level</p>
                   <p className="mt-1 text-sm leading-5 text-muted-foreground">Get every active subject in a curriculum and level.</p>
-                  <p className="mt-4 text-sm font-bold text-primary">Choose bundle below</p>
+                  <p className="mt-4 text-sm font-bold text-primary">{currency} {bundlePrice.toLocaleString("en-LK")} / 30 days</p>
                 </button>
 
                 <button
@@ -866,7 +852,7 @@ export default function PaymentPage() {
                 <div className="mt-6 grid gap-4">
                   <SelectField label="Curriculum" value={curriculumId} onChange={handleCurriculumChange} placeholder="Select curriculum" disabled={false} options={curriculums.map((item) => ({ value: item.id, label: item.name }))} />
                   <SelectField label="Level" value={levelId} onChange={handleLevelChange} placeholder={curriculumId ? "Select level" : "Select curriculum first"} disabled={!curriculumId} options={availableLevels.map((item) => ({ value: item.id, label: item.name }))} />
-                  {selectedBundle ? <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4"><div className="flex items-start justify-between gap-4"><div><p className="font-extrabold">{selectedBundle.name}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{selectedBundle.description || "All active subjects in this curriculum and level."}</p></div><p className="shrink-0 text-lg font-black text-primary">{currency} {Number(selectedBundle.price).toLocaleString("en-LK")}</p></div></div> : <p className="rounded-xl bg-muted/40 p-4 text-xs text-muted-foreground">{levelId ? "No active bundle is available for this curriculum and level." : "Select a level to see available bundles."}</p>}
+                  {levelId ? <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4"><p className="font-extrabold">Bundle selected</p><p className="mt-1 text-xs leading-5 text-muted-foreground">All active subjects in {selectedCurriculum?.name} · {selectedLevel?.name} are included for 30 days.</p><p className="mt-3 text-lg font-black text-primary">{currency} {bundlePrice.toLocaleString("en-LK")}</p></div> : <p className="rounded-xl bg-muted/40 p-4 text-xs text-muted-foreground">Select a level to continue.</p>}
                 </div>
               </section>
             )}
