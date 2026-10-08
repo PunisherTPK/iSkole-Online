@@ -17,7 +17,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body><div className="site-background" aria-hidden="true"><div className="site-background-pattern">π     ∑        E=mc²          λ       √x        ∫          F=ma       Δ          ∞</div></div><div className="site-content">{children}</div></body>
     </html>
   );
 }
