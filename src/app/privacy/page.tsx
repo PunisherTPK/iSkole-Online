@@ -23,7 +23,7 @@ export default function PrivacyPage() {
         <section className="relative overflow-hidden border-b border-border/60">
           <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.08] via-background to-background" />
 
-          <div className="relative mx-auto max-w-7xl px-5 pb-14 pt-14 sm:px-8 sm:pb-18 sm:pt-20">
+          <div className="relative mx-auto max-w-[1440px] px-5 pb-14 pt-14 sm:px-8 sm:pb-18 sm:pt-20">
             <div className="mx-auto max-w-3xl text-center">
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-xl shadow-primary/20">
                 <Lock className="h-6 w-6" />
@@ -542,7 +542,7 @@ export default function PrivacyPage() {
 
         {/* CTA */}
         <section className="border-t border-border bg-primary/[0.035]">
-          <div className="mx-auto max-w-7xl px-5 py-14 text-center sm:px-8 sm:py-16">
+          <div className="mx-auto max-w-[1440px] px-5 py-14 text-center sm:px-8 sm:py-16">
             <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-primary">
               iSkole
             </p>
