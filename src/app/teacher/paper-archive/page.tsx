@@ -12,7 +12,7 @@ type ArchiveQuestion = {
   explanation_images: string[]; correct_option: string | null; marking_text: string | null; explanation_text: string | null;
   teacher_comment: string | null; parts: Part[]; tags: string[]; created_by: string;
 };
-type Tab = "upload" | "browse";
+type Tab = "upload" | "browse" | "delete";
 type ImageListProps = { label: string; files: File[]; setFiles: (files: File[]) => void; hint?: string };
 const inputClass = "mt-2 h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary/10";
 
@@ -63,15 +63,20 @@ export default function PaperArchivePage() {
   const [markingText, setMarkingText] = useState("");
   const [explanationText, setExplanationText] = useState("");
   const [teacherComment, setTeacherComment] = useState("");
-  const [parts, setParts] = useState<Part[]>([]);
   const [tags, setTags] = useState("");
   const [questionFiles, setQuestionFiles] = useState<File[]>([]);
   const [answerFiles, setAnswerFiles] = useState<File[]>([]);
   const [explanationFiles, setExplanationFiles] = useState<File[]>([]);
   const [items, setItems] = useState<ArchiveQuestion[]>([]);
   const [codeSearch, setCodeSearch] = useState("");
+  const [questionSearch, setQuestionSearch] = useState("");
   const [tagSearch, setTagSearch] = useState("");
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [cartItems, setCartItems] = useState<ArchiveQuestion[]>([]);
+  const [deleteSelected, setDeleteSelected] = useState<Set<string>>(new Set());
+  const [importOpen, setImportOpen] = useState(false);
+  const [importText, setImportText] = useState("");
+  const [importMatches, setImportMatches] = useState<Array<{ reference: string; item: ArchiveQuestion | null; status: string; duplicate: boolean }>>([]);
+  const [importing, setImporting] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [showPaperCodes, setShowPaperCodes] = useState(true);
   const [showMarkingScheme, setShowMarkingScheme] = useState(true);
@@ -93,8 +98,10 @@ export default function PaperArchivePage() {
   }, [router, supabase]);
 
   const searchArchive = useCallback(async () => {
-    const code = codeSearch.trim().toUpperCase(); const tag = tagSearch.trim().toLowerCase();
-    if (!code && !tag) { setError("Enter a paper code or tag to search the archive."); return; }
+    let code = codeSearch.trim().toUpperCase(); let question = questionSearch.trim().toUpperCase(); const tag = tagSearch.trim().toLowerCase();
+    const combinedReference = code.match(/^(.+?)\s*-\s*(\S+)$/);
+    if (combinedReference) { code = combinedReference[1].trim(); if (!question) question = combinedReference[2].toUpperCase(); }
+    if (!code && !question && !tag) { setError("Enter a paper code, question number, or tag to search the archive."); return; }
     setSearching(true); setError(""); setHasSearched(true);
     let query = supabase.from("paper_archive_questions").select("id,subject_code,paper_number,session,year,question_number,question_type,marks,question_images,answer_images,explanation_images,correct_option,marking_text,explanation_text,parts,tags,created_by").order("subject_code").order("year", { ascending: false }).order("question_number").limit(500);
     if (code) {
@@ -102,13 +109,14 @@ export default function PaperArchivePage() {
       if (exact) query = query.eq("subject_code", exact.subject_code).eq("paper_number", exact.paper_number).eq("session", exact.session).eq("year", exact.year);
       else {
         const partial = code.match(/^([A-Z0-9]{1,24})(?:\/([A-Z0-9]{1,12}))?(?:\/(M\/J|O\/N))?(?:\/(\d{2}))?$/);
-        if (!partial) { setSearching(false); setError("Enter a full paper code like 5054/11/M/J/26, or a partial code such as 5054/11."); return; }
+        if (!partial) { setItems([]); setSearching(false); setError("Enter a full paper code like 5054/11/M/J/26, or a partial code such as 5054/11."); return; }
         query = query.eq("subject_code", partial[1]);
         if (partial[2]) query = query.eq("paper_number", partial[2]);
         if (partial[3]) query = query.eq("session", partial[3]);
         if (partial[4]) query = query.eq("year", Number(partial[4]));
       }
     }
+    if (question) query = query.ilike("question_number", question);
     if (tag) query = query.contains("tags", [tag]);
     const { data, error: queryError } = await query;
     if (queryError) setError(queryError.message);
@@ -122,13 +130,13 @@ export default function PaperArchivePage() {
         noteRows = (notes ?? []) as Array<{ paper_archive_question_id: string; comment: string }>;
       }
       const noteById = new Map(noteRows.map((note) => [note.paper_archive_question_id, note.comment]));
-      setItems(rows.map((row) => ({ ...row, teacher_comment: noteById.get(row.id) ?? null }))); setSelected(new Set());
+      setItems(rows.map((row) => ({ ...row, teacher_comment: noteById.get(row.id) ?? null })));
     }
     setSearching(false);
-  }, [codeSearch, supabase, tagSearch, userId]);
+  }, [codeSearch, questionSearch, supabase, tagSearch, userId]);
 
   useEffect(() => { if (printing) { const timer = window.setTimeout(() => { window.print(); setPrinting(false); }, 250); return () => window.clearTimeout(timer); } }, [printing]);
-  const chosenItems = items.filter((item) => selected.has(item.id));
+  const chosenItems = cartItems;
 
   async function saveQuestion(event: React.FormEvent) {
     event.preventDefault(); setError(""); setMessage("");
@@ -146,8 +154,7 @@ export default function PaperArchivePage() {
         correct_option: questionType === "mcq" ? correctOption : null, question_images: questionImages, answer_images: answerImages,
         marking_text: questionType === "structured" ? markingText.trim() || null : null, explanation_text: explanationText.trim() || null,
         explanation_images: explanationImages,
-        parts: questionType === "structured" ? parts.filter((part) => part.label.trim() || part.prompt.trim()).map((part) => ({ ...part, label: part.label.trim(), prompt: part.prompt.trim(), marks: Number(part.marks) || 0 })) : [],
-        tags: [...new Set(tags.split(",").map((tag) => tag.trim().toLowerCase()).filter(Boolean))], created_by: userId };
+        parts: [], tags: [...new Set(tags.split(",").map((tag) => tag.trim().toLowerCase()).filter(Boolean))], created_by: userId };
       const { data: savedQuestion, error: insertError } = await supabase.from("paper_archive_questions").upsert(row, { onConflict: "subject_code,paper_number,session,year,question_number" }).select("id").single();
       if (insertError) throw new Error(insertError.message);
       const comment = teacherComment.trim();
@@ -155,7 +162,7 @@ export default function PaperArchivePage() {
         ? await supabase.from("paper_archive_teacher_comments").upsert({ paper_archive_question_id: savedQuestion.id, teacher_id: userId, comment }, { onConflict: "paper_archive_question_id,teacher_id" })
         : await supabase.from("paper_archive_teacher_comments").delete().eq("paper_archive_question_id", savedQuestion.id).eq("teacher_id", userId);
       if (commentResult.error) throw new Error(`Question saved, but the private teacher comment could not be saved: ${commentResult.error.message}`);
-      setMessage("Question saved in Paper Archive."); setQuestionNumber(""); setMarks("1"); setCorrectOption(""); setMarkingText(""); setExplanationText(""); setTeacherComment(""); setParts([]); setTags(""); setQuestionFiles([]); setAnswerFiles([]); setExplanationFiles([]);
+      setMessage("Question saved in Paper Archive."); setQuestionNumber(""); setMarks("1"); setCorrectOption(""); setMarkingText(""); setExplanationText(""); setTeacherComment(""); setTags(""); setQuestionFiles([]); setAnswerFiles([]); setExplanationFiles([]);
       if (hasSearched) await searchArchive();
     } catch (saveError) { setError(saveError instanceof Error ? saveError.message : "Unable to save this archive question."); }
     finally { setBusy(false); }
@@ -170,13 +177,72 @@ export default function PaperArchivePage() {
     } catch { setError("Copying images requires clipboard permission in this browser. Use Download image instead."); }
   }
   function downloadImage(url: string, name: string) { const link = document.createElement("a"); link.href = url; link.download = name; link.target = "_blank"; link.rel = "noreferrer"; link.click(); }
-  function toggleSelected(id: string) { setSelected((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; }); }
+  function toggleCart(item: ArchiveQuestion) { setCartItems((current) => current.some((entry) => entry.id === item.id) ? current.filter((entry) => entry.id !== item.id) : [...current, item]); }
+  function toggleDeleteSelected(id: string) { setDeleteSelected((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; }); }
+
+  async function previewImportList() {
+    setError(""); setImporting(true);
+    const references = importText.split(/\r?\n/).map((line) => {
+      const value = line.trim().toUpperCase();
+      const match = value.match(/^([A-Z0-9]{1,24})\/([A-Z0-9]{1,12})\/(M\/J|O\/N)\/(\d{2})\s*-\s*(\S+)$/);
+      return { reference: value, identity: match ? { subject_code: match[1], paper_number: match[2], session: match[3], year: Number(match[4]), question_number: match[5] } : null };
+    }).filter((entry) => entry.reference);
+    const valid = references.flatMap((entry) => entry.identity ? [entry.identity] : []);
+    if (!valid.length) { setImportMatches(references.map((entry) => ({ reference: entry.reference, item: null, status: "Invalid reference", duplicate: false }))); setImporting(false); setError("Enter references like 9702/12/M/J/24 - 5, one per line."); return; }
+    const subjectCodes = [...new Set(valid.map((reference) => reference.subject_code))];
+    const { data, error: queryError } = await supabase.from("paper_archive_questions")
+      .select("id,subject_code,paper_number,session,year,question_number,question_type,marks,question_images,answer_images,explanation_images,correct_option,marking_text,explanation_text,parts,tags,created_by")
+      .in("subject_code", subjectCodes).limit(1000);
+    if (queryError) { setError(queryError.message); setImporting(false); return; }
+    const rows = (data ?? []) as ArchiveQuestion[];
+    let noteById = new Map<string, string>();
+    if (userId && rows.length) {
+      const { data: notes, error: noteError } = await supabase.from("paper_archive_teacher_comments").select("paper_archive_question_id,comment").eq("teacher_id", userId).in("paper_archive_question_id", rows.map((item) => item.id));
+      if (noteError) setError(noteError.message);
+      noteById = new Map(((notes ?? []) as Array<{ paper_archive_question_id: string; comment: string }>).map((note) => [note.paper_archive_question_id, note.comment]));
+    }
+    const seen = new Set<string>();
+    const results = references.map((entry) => {
+      if (!entry.identity) return { reference: entry.reference, item: null, status: "Invalid reference", duplicate: false };
+      const duplicate = seen.has(entry.reference); seen.add(entry.reference);
+      const id = entry.identity;
+      const match = rows.find((item) => item.subject_code.toUpperCase() === id.subject_code && item.paper_number.toUpperCase() === id.paper_number && item.session.toUpperCase() === id.session && Number(item.year) === id.year && item.question_number.toUpperCase() === id.question_number);
+      if (!match) return { reference: entry.reference, item: null, status: duplicate ? "Repeated reference" : "Not found", duplicate };
+      const item = { ...match, teacher_comment: noteById.get(match.id) ?? null };
+      return { reference: entry.reference, item, status: duplicate ? "Repeated reference" : cartItems.some((cartItem) => cartItem.id === item.id) ? "Already in PDF cart" : "Ready to add", duplicate };
+    });
+    setImportMatches(results); setImporting(false);
+  }
+
+  function addImportMatchesToCart() {
+    const additions = importMatches.flatMap((match) => match.item && match.status === "Ready to add" ? [match.item] : []);
+    if (!additions.length) return;
+    setCartItems((current) => { const ids = new Set(current.map((item) => item.id)); const unique = [...current]; for (const item of additions) { if (!ids.has(item.id)) { ids.add(item.id); unique.push(item); } } return unique; });
+    setImportMatches((current) => current.map((match) => match.item && additions.some((item) => item.id === match.item?.id) ? { ...match, status: "Added to PDF cart" } : match));
+    setMessage(`${additions.length} archive question${additions.length === 1 ? "" : "s"} added to the PDF cart.`);
+  }
+
+  async function deleteArchiveQuestions(ids: string[]) {
+    if (!ids.length) return;
+    const approved = window.confirm(`Delete ${ids.length} archive question${ids.length === 1 ? "" : "s"}? This removes the archive records but leaves stored images untouched.`);
+    if (!approved) return;
+    setError(""); setMessage("");
+    const { data, error: deleteError } = await supabase.from("paper_archive_questions").delete().in("id", ids).select("id");
+    if (deleteError) { setError(deleteError.message); return; }
+    const deletedRows = (data ?? []) as Array<{ id: string }>;
+    const deletedIds = new Set<string>(deletedRows.map((row) => row.id));
+    if (!deletedIds.size) { setError("No questions were deleted. Only the uploader or an admin can delete these archive entries."); return; }
+    setItems((current) => current.filter((item) => !deletedIds.has(item.id)));
+    setCartItems((current) => current.filter((item) => !deletedIds.has(item.id)));
+    setDeleteSelected((current) => new Set([...current].filter((id) => !deletedIds.has(id))));
+    setMessage(deletedIds.size === ids.length ? `Deleted ${deletedIds.size} question${deletedIds.size === 1 ? "" : "s"}.` : `Deleted ${deletedIds.size} question${deletedIds.size === 1 ? "" : "s"}. The remaining ${ids.length - deletedIds.size} can only be deleted by their uploader or an admin.`);
+  }
 
   if (loading) return <div className="flex min-h-64 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
   if (!authorized) return null;
   return <div className="space-y-6">
     <header><p className="text-sm font-semibold text-primary">Teacher Workspace</p><h1 className="mt-1 text-3xl font-extrabold tracking-tight">Paper Archive</h1><p className="mt-2 text-sm text-muted-foreground">Store past-paper questions separately so they can be reused in Question Pages.</p></header>
-    <div className="flex flex-wrap gap-2"><button type="button" onClick={() => setTab("upload")} className={`inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold ${tab === "upload" ? "bg-primary text-primary-foreground" : "border border-border hover:bg-muted"}`}><Upload className="h-4 w-4" /> Upload papers</button><button type="button" onClick={() => setTab("browse")} className={`inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold ${tab === "browse" ? "bg-primary text-primary-foreground" : "border border-border hover:bg-muted"}`}><Search className="h-4 w-4" /> Browse papers</button><button type="button" onClick={() => router.push("/teacher/studio")} className="inline-flex h-10 items-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold hover:bg-muted"><FileText className="h-4 w-4" /> Create Q Page</button></div>
+    <div className="flex flex-wrap gap-2"><button type="button" onClick={() => setTab("upload")} className={`inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold ${tab === "upload" ? "bg-primary text-primary-foreground" : "border border-border hover:bg-muted"}`}><Upload className="h-4 w-4" /> Upload papers</button><button type="button" onClick={() => setTab("browse")} className={`inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold ${tab === "browse" ? "bg-primary text-primary-foreground" : "border border-border hover:bg-muted"}`}><Search className="h-4 w-4" /> Browse papers</button><button type="button" onClick={() => setTab("delete")} className={`inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold ${tab === "delete" ? "bg-destructive text-destructive-foreground" : "border border-border text-destructive hover:bg-destructive/5"}`}><Trash2 className="h-4 w-4" /> Delete questions</button><button type="button" onClick={() => router.push("/teacher/studio")} className="inline-flex h-10 items-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold hover:bg-muted"><FileText className="h-4 w-4" /> Create Q Page</button></div>
     {error && <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">{error}</div>}{message && <div className="rounded-xl border border-emerald-600/20 bg-emerald-600/5 px-4 py-3 text-sm text-emerald-700">{message}</div>}
 
     {tab === "upload" ? <form onSubmit={(event) => void saveQuestion(event)} className="space-y-5 rounded-2xl border border-border bg-card p-5 sm:p-7">
@@ -186,9 +252,6 @@ export default function PaperArchivePage() {
       {questionType === "mcq" ? <label className="block text-sm font-semibold">Correct option<select value={correctOption} onChange={(event) => setCorrectOption(event.target.value)} className={inputClass}><option value="">Select correct option</option>{["A", "B", "C", "D"].map((option) => <option key={option} value={option}>{option}</option>)}</select></label> : <>
         <ImageList label="Answer / marking-scheme images" files={answerFiles} setFiles={setAnswerFiles} />
         <label className="block text-sm font-semibold">Marking guidance<textarea value={markingText} onChange={(event) => setMarkingText(event.target.value)} className="mt-2 min-h-24 w-full rounded-xl border border-input bg-background p-3 text-sm outline-none focus:border-primary" placeholder="Optional answer text or marking guidance" /></label>
-        <div className="space-y-3 rounded-xl border border-border p-4"><div className="flex items-center justify-between gap-3"><div><h3 className="text-sm font-bold">Question parts</h3><p className="mt-1 text-xs text-muted-foreground">Add parts such as (a), (b), and their marks or prompt.</p></div><button type="button" onClick={() => setParts([...parts, { label: `(${String.fromCharCode(97 + parts.length)})`, prompt: "", marks: 0 }])} className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-muted"><Plus className="h-3.5 w-3.5" /> Add part</button></div>
-          {parts.map((part, index) => <div key={index} className="grid gap-3 rounded-lg bg-muted/30 p-3 sm:grid-cols-[100px_1fr_100px_auto]"><label className="text-xs font-semibold">Part<input value={part.label} onChange={(event) => setParts(parts.map((entry, i) => i === index ? { ...entry, label: event.target.value } : entry))} className={inputClass} /></label><label className="text-xs font-semibold">Prompt / instruction<input value={part.prompt} onChange={(event) => setParts(parts.map((entry, i) => i === index ? { ...entry, prompt: event.target.value } : entry))} className={inputClass} placeholder="Optional part wording" /></label><label className="text-xs font-semibold">Marks<input type="number" min="0" step="0.5" value={part.marks} onChange={(event) => setParts(parts.map((entry, i) => i === index ? { ...entry, marks: Number(event.target.value) } : entry))} className={inputClass} /></label><button type="button" onClick={() => setParts(parts.filter((_, i) => i !== index))} className="mt-6 rounded-lg p-2 text-destructive hover:bg-destructive/10" aria-label="Remove part"><Trash2 className="h-4 w-4" /></button></div>)}
-        </div>
       </>}
       <ImageList label="Explanation images" files={explanationFiles} setFiles={setExplanationFiles} />
       <label className="block text-sm font-semibold">Explanation text<textarea value={explanationText} onChange={(event) => setExplanationText(event.target.value)} className="mt-2 min-h-24 w-full rounded-xl border border-input bg-background p-3 text-sm outline-none focus:border-primary" placeholder="Optional explanation" /></label>
@@ -196,11 +259,18 @@ export default function PaperArchivePage() {
       <label className="block text-sm font-semibold">Optional tags<input value={tags} onChange={(event) => setTags(event.target.value)} className={inputClass} placeholder="mechanics, forces, revision" /><span className="mt-1 block text-xs font-normal text-muted-foreground">Separate tags with commas.</span></label>
       <div className="flex justify-end"><button type="submit" disabled={busy} className="inline-flex h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground disabled:opacity-50">{busy ? <><Loader2 className="h-4 w-4 animate-spin" /> Compressing and saving...</> : <><Archive className="h-4 w-4" /> Save archive question</>}</button></div>
     </form> : <section className="space-y-4">
-      <div className="grid gap-3 rounded-2xl border border-border bg-card p-4 sm:grid-cols-[1fr_1fr_auto]"><label className="text-xs font-semibold text-muted-foreground">Search paper code<input value={codeSearch} onChange={(event) => setCodeSearch(event.target.value)} className={inputClass} placeholder="5054/11/M/J/26 or 5054/11" /></label><label className="text-xs font-semibold text-muted-foreground">Search tag<input value={tagSearch} onChange={(event) => setTagSearch(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void searchArchive(); } }} className={inputClass} placeholder="mechanics" /></label><div className="flex items-end"><button type="button" onClick={() => void searchArchive()} disabled={searching} className="inline-flex h-11 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50">{searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />} Search</button></div></div>
-      <div className="flex flex-wrap gap-x-5 gap-y-2 rounded-xl border border-border bg-card p-3 text-xs"><span className="font-bold">PDF contents:</span><Toggle label="Paper codes" checked={showPaperCodes} onChange={setShowPaperCodes} /><Toggle label="Marking scheme" checked={showMarkingScheme} onChange={setShowMarkingScheme} /><Toggle label="Explanations" checked={showExplanations} onChange={setShowExplanations} /><Toggle label="Teacher comments" checked={showTeacherComments} onChange={setShowTeacherComments} /><Toggle label="Marks" checked={showMarks} onChange={setShowMarks} /></div>
-      {hasSearched && <><div className="flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-muted-foreground">{items.length} matching question{items.length === 1 ? "" : "s"}. Select questions to prepare a PDF.</p><button type="button" onClick={() => setPrinting(true)} disabled={!chosenItems.length} className="inline-flex h-10 items-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold hover:bg-muted disabled:opacity-50"><FileDown className="h-4 w-4" /> Export PDF ({chosenItems.length})</button></div>
-        {items.length ? items.map((item) => <article key={item.id} className="rounded-2xl border border-border bg-card p-4 sm:p-5"><div className="mb-4 flex flex-wrap items-start justify-between gap-3"><label className="flex items-center gap-2 text-sm font-bold"><input type="checkbox" checked={selected.has(item.id)} onChange={() => toggleSelected(item.id)} className="h-4 w-4 accent-primary" />{paperCodeFor(item)} – Q{item.question_number} · {item.question_type === "mcq" ? "MCQ" : "Structured"}</label><div className="flex flex-wrap gap-1.5">{item.tags.map((tag) => <span key={tag} className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold">{tag}</span>)}</div></div><div className="grid gap-4 lg:grid-cols-2"><ImageSet label="Question" urls={item.question_images} onCopy={copyImage} onDownload={(url, index) => downloadImage(url, `question-${item.question_number}-${index + 1}.webp`)} copied={copied} /><div className="space-y-3">{item.question_type === "mcq" && <p className="rounded-lg bg-muted/40 p-3 text-sm font-semibold">Correct option: {item.correct_option ?? "Not set"}</p>}{item.marking_text && <p className="rounded-lg bg-muted/40 p-3 text-sm">{item.marking_text}</p>}<ImageSet label="Answer / marking scheme" urls={item.answer_images} onCopy={copyImage} onDownload={(url, index) => downloadImage(url, `answer-${item.question_number}-${index + 1}.webp`)} copied={copied} /><ImageSet label="Explanation" urls={item.explanation_images} onCopy={copyImage} onDownload={(url, index) => downloadImage(url, `explanation-${item.question_number}-${index + 1}.webp`)} copied={copied} />{item.explanation_text && <p className="rounded-lg bg-muted/40 p-3 text-sm">{item.explanation_text}</p>}</div></div>{item.parts?.length > 0 && <div className="mt-4 rounded-lg bg-muted/30 p-3 text-sm"><strong>Parts:</strong> {item.parts.map((part) => `${part.label}${part.marks ? ` (${part.marks} marks)` : ""}`).join(" · ")}</div>}</article>) : <div className="rounded-2xl border border-dashed border-border bg-card p-12 text-center text-sm text-muted-foreground">No archive questions match those search terms.</div>}
-      </>}{!hasSearched && <div className="rounded-2xl border border-dashed border-border bg-card p-12 text-center text-sm text-muted-foreground">Search by paper code or tag to see archive questions.</div>}
+      <div className="grid gap-3 rounded-2xl border border-border bg-card p-4 sm:grid-cols-2 lg:grid-cols-[1.2fr_0.8fr_0.8fr_auto]"><label className="text-xs font-semibold text-muted-foreground">Search paper code<input value={codeSearch} onChange={(event) => setCodeSearch(event.target.value)} className={inputClass} placeholder="9702/12/M/J/24 or 9702/12" /></label><label className="text-xs font-semibold text-muted-foreground">Question number<input value={questionSearch} onChange={(event) => setQuestionSearch(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void searchArchive(); } }} className={inputClass} placeholder="5 or 5(a)" /></label><label className="text-xs font-semibold text-muted-foreground">Search tag<input value={tagSearch} onChange={(event) => setTagSearch(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void searchArchive(); } }} className={inputClass} placeholder="mechanics" /></label><div className="flex items-end"><button type="button" onClick={() => void searchArchive()} disabled={searching} className="inline-flex h-11 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50">{searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />} Search</button></div></div>
+      {tab === "browse" && <>
+        <div className="flex flex-wrap gap-x-5 gap-y-2 rounded-xl border border-border bg-card p-3 text-xs"><span className="font-bold">PDF contents:</span><Toggle label="Paper codes" checked={showPaperCodes} onChange={setShowPaperCodes} /><Toggle label="Marking scheme" checked={showMarkingScheme} onChange={setShowMarkingScheme} /><Toggle label="Explanations" checked={showExplanations} onChange={setShowExplanations} /><Toggle label="Teacher comments" checked={showTeacherComments} onChange={setShowTeacherComments} /><Toggle label="Marks" checked={showMarks} onChange={setShowMarks} /></div>
+        <section className="space-y-3 rounded-2xl border border-primary/20 bg-primary/[0.025] p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-bold">Import questions to PDF cart</h2><p className="mt-1 text-xs text-muted-foreground">Paste one paper reference per line. Preview matches, then add them to the cart.</p></div><button type="button" onClick={() => setImportOpen(!importOpen)} className="rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-muted">{importOpen ? "Close import" : "Import question list"}</button></div>
+          {importOpen && <><textarea value={importText} onChange={(event) => setImportText(event.target.value)} className="min-h-24 w-full rounded-xl border border-input bg-background p-3 font-mono text-sm outline-none focus:border-primary" placeholder={'9702/12/M/J/24 - 5\n5054/11/M/J/26 - 10(a)'} /><div className="flex flex-wrap gap-2"><button type="button" onClick={() => void previewImportList()} disabled={importing} className="inline-flex h-10 items-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold hover:bg-muted disabled:opacity-50">{importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />} Preview matches</button><button type="button" onClick={addImportMatchesToCart} disabled={!importMatches.some((match) => match.status === "Ready to add")} className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"><Plus className="h-4 w-4" /> Add matches to cart</button></div>{importMatches.length > 0 && <div className="divide-y divide-border rounded-xl border border-border bg-card">{importMatches.map((match, index) => <div key={`${match.reference}-${index}`} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 text-sm"><span className="font-mono text-xs">{match.reference}</span><span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${match.status === "Ready to add" || match.status === "Added to PDF cart" ? "bg-emerald-500/10 text-emerald-700" : "bg-amber-500/10 text-amber-700"}`}>{match.status}</span></div>)}</div>}</>}
+        </section>
+        <section className="space-y-3 rounded-2xl border border-border bg-card p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-bold">PDF cart · {cartItems.length} question{cartItems.length === 1 ? "" : "s"}</h2><p className="mt-1 text-xs text-muted-foreground">Cart contents stay selected as you search other papers.</p></div><div className="flex gap-2"><button type="button" onClick={() => setCartItems([])} disabled={!cartItems.length} className="rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-muted disabled:opacity-50">Clear cart</button><button type="button" onClick={() => setPrinting(true)} disabled={!cartItems.length} className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50"><FileDown className="h-4 w-4" /> Generate PDF</button></div></div>{cartItems.length > 0 && <div className="flex flex-wrap gap-2">{cartItems.map((item) => <button key={item.id} type="button" onClick={() => toggleCart(item)} className="rounded-full bg-muted px-3 py-1.5 text-xs hover:bg-destructive/10 hover:text-destructive">{paperCodeFor(item)} · Q{item.question_number} ×</button>)}</div>}</section>
+      </>}
+      {tab === "delete" && <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-4"><div><h2 className="font-bold">Batch delete</h2><p className="mt-1 text-xs text-muted-foreground">Select search results here. Only the uploader or an admin can delete an archive question.</p></div><div className="flex gap-2"><button type="button" onClick={() => setDeleteSelected(new Set())} disabled={!deleteSelected.size} className="rounded-lg border border-border px-3 py-2 text-xs font-semibold disabled:opacity-50">Clear selection</button><button type="button" onClick={() => void deleteArchiveQuestions([...deleteSelected])} disabled={!deleteSelected.size} className="inline-flex items-center gap-2 rounded-lg bg-destructive px-3 py-2 text-xs font-semibold text-destructive-foreground disabled:opacity-50"><Trash2 className="h-4 w-4" /> Delete selected ({deleteSelected.size})</button></div></section>}
+      {hasSearched && <><p className="text-xs text-muted-foreground">{items.length} matching question{items.length === 1 ? "" : "s"}.</p>
+        {items.length ? items.map((item) => <article key={item.id} className="rounded-2xl border border-border bg-card p-4 sm:p-5"><div className="mb-4 flex flex-wrap items-start justify-between gap-3"><div className="flex flex-wrap items-center gap-3"><label className="flex items-center gap-2 text-sm font-bold"><input type="checkbox" checked={tab === "browse" ? cartItems.some((entry) => entry.id === item.id) : deleteSelected.has(item.id)} onChange={() => tab === "browse" ? toggleCart(item) : toggleDeleteSelected(item.id)} className="h-4 w-4 accent-primary" />{tab === "browse" ? "Add to PDF" : "Select"}</label><span className="text-sm font-bold">{paperCodeFor(item)} – Q{item.question_number} · {item.question_type === "mcq" ? "MCQ" : "Structured"}</span></div><div className="flex items-center gap-2"><div className="flex flex-wrap gap-1.5">{item.tags.map((tag) => <span key={tag} className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold">{tag}</span>)}</div><button type="button" onClick={() => void deleteArchiveQuestions([item.id])} title="Delete archive question" className="rounded-lg p-2 text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></button></div></div><div className="grid gap-4 lg:grid-cols-2"><ImageSet label="Question" urls={item.question_images} onCopy={copyImage} onDownload={(url, index) => downloadImage(url, `question-${item.question_number}-${index + 1}.webp`)} copied={copied} /><div className="space-y-3">{item.question_type === "mcq" && <p className="rounded-lg bg-muted/40 p-3 text-sm font-semibold">Correct option: {item.correct_option ?? "Not set"}</p>}{item.marking_text && <p className="rounded-lg bg-muted/40 p-3 text-sm">{item.marking_text}</p>}<ImageSet label="Answer / marking scheme" urls={item.answer_images} onCopy={copyImage} onDownload={(url, index) => downloadImage(url, `answer-${item.question_number}-${index + 1}.webp`)} copied={copied} /><ImageSet label="Explanation" urls={item.explanation_images} onCopy={copyImage} onDownload={(url, index) => downloadImage(url, `explanation-${item.question_number}-${index + 1}.webp`)} copied={copied} />{item.explanation_text && <p className="rounded-lg bg-muted/40 p-3 text-sm">{item.explanation_text}</p>}</div></div></article>) : <div className="rounded-2xl border border-dashed border-border bg-card p-12 text-center text-sm text-muted-foreground">No archive questions match those search terms.</div>}
+      </>}{!hasSearched && <div className="rounded-2xl border border-dashed border-border bg-card p-12 text-center text-sm text-muted-foreground">Search by paper code, question number, or tag to see archive questions.</div>}
     </section>}
 
     {printing && <div className="print-only fixed inset-0 z-[100] overflow-auto bg-white p-8 text-black"><h1 className="mb-6 text-2xl font-bold">iSkole Paper Archive</h1><section><h2 className="mb-4 border-b pb-2 text-xl font-bold">Questions</h2>{chosenItems.map((item, index) => <article key={item.id} className="mb-8 break-inside-avoid">{showPaperCodes && <p className="text-xs font-semibold uppercase tracking-wide">{paperCodeFor(item)}</p>}<h3 className="my-2 text-lg font-bold">Question {item.question_number}{showMarks ? ` · ${item.marks} marks` : ""}</h3>{item.question_images.map((url, imageIndex) => <img key={url} src={url} alt={`Question ${imageIndex + 1}`} className="mb-3 max-h-[650px] w-full object-contain" />)}{item.parts?.length > 0 && <ol className="mt-4 space-y-2">{item.parts.map((part, partIndex) => <li key={partIndex}><strong>{part.label}</strong> {part.prompt}{showMarks && part.marks ? ` [${part.marks} marks]` : ""}</li>)}</ol>}</article>)}</section>
