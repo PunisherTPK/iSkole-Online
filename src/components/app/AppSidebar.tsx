@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, CreditCard, GraduationCap, LayoutDashboard, Settings, Users, X } from "lucide-react";
+import { Archive, BookOpen, CreditCard, GraduationCap, LayoutDashboard, Settings, Users, X } from "lucide-react";
 import logo from "../../../iskole logo.png";
 
 export type AppRole = "admin" | "teacher" | "student";
@@ -13,7 +13,7 @@ const navigation: Record<AppRole, NavItem[]> = {
     { label: "Dashboard", href: "/admin", icon: LayoutDashboard }, { label: "Content Manager", href: "/admin/content-manager", icon: BookOpen }, { label: "Teachers", href: "/admin/teachers", icon: GraduationCap }, { label: "Students", href: "/admin/students", icon: Users }, { label: "Payment Requests", href: "/admin/payments", icon: CreditCard }, { label: "Payment Settings", href: "/admin/payment-settings", icon: Settings },
   ],
   teacher: [
-    { label: "Dashboard", href: "/teacher", icon: LayoutDashboard }, { label: "Teacher Studio", href: "/teacher/studio", icon: BookOpen }, { label: "Students", href: "/teacher/students", icon: Users },
+    { label: "Dashboard", href: "/teacher", icon: LayoutDashboard }, { label: "Teacher Studio", href: "/teacher/studio", icon: BookOpen }, { label: "Paper Archive", href: "/teacher/paper-archive", icon: Archive }, { label: "Students", href: "/teacher/students", icon: Users },
   ],
   student: [
     { label: "Dashboard", href: "/student", icon: LayoutDashboard }, { label: "Question Bank", href: "/question-bank", icon: BookOpen }, { label: "My Learning", href: "/student/learning", icon: GraduationCap }, { label: "Subscription", href: "/student/subscription", icon: CreditCard },

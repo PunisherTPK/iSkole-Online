@@ -23,6 +23,7 @@ type Question = {
   marks: number;
   order_index: number;
   question_image_url: string | null;
+  question_images: string[];
   paper_code: string | null;
   paper_question_number: string | null;
 };
@@ -31,9 +32,12 @@ type Answer = {
   id: string | null;
   question_id: string;
   answer_image_url: string | null;
+  answer_images: string[];
   answer_text: string | null;
   correct_option: string | null;
 };
+type ArchiveQuestion = { id: string; subject_code: string; paper_number: string; session: string; year: number; question_number: string; question_images: string[]; answer_images: string[] };
+type ImportMatch = { reference: string; archive: ArchiveQuestion | null; duplicateInput: boolean; alreadyAdded: boolean; malformed?: boolean };
 
 const inputClass = "mt-2 h-10 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary/10";
 
@@ -46,6 +50,9 @@ export default function QuestionPageEditor() {
   const [page, setPage] = useState<QuestionPage | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [answers, setAnswers] = useState<Record<string, Answer>>({});
+  const [teacherComment, setTeacherComment] = useState("");
+  const [commentSaving, setCommentSaving] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [discussionUrl, setDiscussionUrl] = useState("");
   const [savedDiscussionUrl, setSavedDiscussionUrl] = useState("");
   const [loading, setLoading] = useState(true);
@@ -57,6 +64,10 @@ export default function QuestionPageEditor() {
   const [publishing, setPublishing] = useState(false);
   const [uploading, setUploading] = useState<"question" | "answer" | null>(null);
   const [deletingPage, setDeletingPage] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importText, setImportText] = useState("");
+  const [importMatches, setImportMatches] = useState<ImportMatch[]>([]);
+  const [importing, setImporting] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -67,6 +78,7 @@ export default function QuestionPageEditor() {
       router.replace("/login");
       return;
     }
+    setCurrentUserId(user.id);
 
     const { data: profile } = await supabase
       .from("profiles")
@@ -115,7 +127,7 @@ export default function QuestionPageEditor() {
 
     const { data: questionData, error: questionError } = await supabase
       .from("questions")
-      .select("id, question_page_id, question_number, question_type, marks, order_index, question_image_url, paper_code, paper_question_number")
+      .select("id, question_page_id, question_number, question_type, marks, order_index, question_image_url, question_images, paper_code, paper_question_number")
       .eq("question_page_id", pageId)
       .order("order_index", { ascending: true });
 
@@ -132,7 +144,7 @@ export default function QuestionPageEditor() {
     if (ids.length) {
       const { data, error: answerError } = await supabase
         .from("question_answers")
-        .select("id, question_id, answer_image_url, answer_text, correct_option")
+        .select("id, question_id, answer_image_url, answer_images, answer_text, correct_option")
         .in("question_id", ids);
 
       if (answerError) {
@@ -145,8 +157,9 @@ export default function QuestionPageEditor() {
     }
 
     setPage(pageData as QuestionPage);
-    setQuestions(questionRows);
+    setQuestions(questionRows.map((question) => ({ ...question, question_images: question.question_images ?? (question.question_image_url ? [question.question_image_url] : []) })));
     setAnswers(Object.fromEntries(answerRows.map((answer) => [answer.question_id, answer])));
+    setTeacherComment("");
     setSelectedId((current) => current && ids.includes(current) ? current : ids[0] ?? null);
     setLoading(false);
   }
@@ -155,18 +168,23 @@ export default function QuestionPageEditor() {
     void load();
   }, [pageId]);
 
+  useEffect(() => {
+    if (!selectedId || !currentUserId) { setTeacherComment(""); return; }
+    void (async () => {
+      const result = await supabase.from("question_teacher_comments").select("comment").eq("question_id", selectedId).eq("teacher_id", currentUserId).maybeSingle();
+      if (result.error) setError(result.error.message);
+      setTeacherComment(result.data?.comment ?? "");
+    })();
+  }, [selectedId, currentUserId, supabase]);
+
   async function uploadImage(file: File, folder: "questions" | "answers") {
-    const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
-    const path = `${folder}/${crypto.randomUUID()}.${extension}`;
-    const bucket = folder === "questions" ? "question-images" : "answer-images";
-
-    const { error: uploadError } = await supabase.storage
-      .from(bucket)
-      .upload(path, file, { upsert: false, contentType: file.type });
-
-    if (uploadError) throw new Error(uploadError.message);
-
-    return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+    const form = new FormData();
+    form.set("file", file);
+    form.set("bucket", folder === "questions" ? "question-images" : "answer-images");
+    const response = await fetch("/api/teacher/image", { method: "POST", body: form });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Unable to upload image.");
+    return result.url as string;
   }
 
   async function addQuestion() {
@@ -181,7 +199,7 @@ export default function QuestionPageEditor() {
       const { data, error: insertError } = await supabase
         .from("questions")
         .insert({ question_page_id: page.id, question_number: nextNumber, question_type: page.page_type, marks: 1, order_index: nextOrder })
-        .select("id, question_page_id, question_number, question_type, marks, order_index, question_image_url, paper_code, paper_question_number")
+        .select("id, question_page_id, question_number, question_type, marks, order_index, question_image_url, question_images, paper_code, paper_question_number")
         .single();
 
       if (insertError) throw new Error(insertError.message);
@@ -215,7 +233,8 @@ export default function QuestionPageEditor() {
           question_id: question.id,
           answer_text: answer.answer_text?.trim() || null,
           correct_option: answer.correct_option || null,
-          answer_image_url: answer.answer_image_url || null,
+          answer_image_url: answer.answer_images?.[0] ?? answer.answer_image_url ?? null,
+          answer_images: answer.answer_images ?? (answer.answer_image_url ? [answer.answer_image_url] : []),
         };
 
         if (answer.id) {
@@ -349,9 +368,10 @@ export default function QuestionPageEditor() {
     setError("");
     try {
       const url = await uploadImage(file, "questions");
-      const { error: updateError } = await supabase.from("questions").update({ question_image_url: url }).eq("id", question.id);
+      const images = [...(question.question_images ?? (question.question_image_url ? [question.question_image_url] : [])), url];
+      const { error: updateError } = await supabase.from("questions").update({ question_image_url: images[0] ?? null, question_images: images }).eq("id", question.id);
       if (updateError) throw new Error(updateError.message);
-      setQuestions((current) => current.map((item) => item.id === question.id ? { ...item, question_image_url: url } : item));
+      setQuestions((current) => current.map((item) => item.id === question.id ? { ...item, question_image_url: images[0] ?? null, question_images: images } : item));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to upload question image.");
     } finally {
@@ -373,12 +393,13 @@ export default function QuestionPageEditor() {
     try {
       const url = await uploadImage(file, "answers");
       const existing = answers[question.id];
+      const images = [...(existing?.answer_images ?? (existing?.answer_image_url ? [existing.answer_image_url] : [])), url];
       if (existing?.id) {
-        const { error: updateError } = await supabase.from("question_answers").update({ answer_image_url: url }).eq("id", existing.id);
+        const { error: updateError } = await supabase.from("question_answers").update({ answer_image_url: images[0] ?? null, answer_images: images }).eq("id", existing.id);
         if (updateError) throw new Error(updateError.message);
-        setAnswers((current) => ({ ...current, [question.id]: { ...existing, answer_image_url: url } }));
+        setAnswers((current) => ({ ...current, [question.id]: { ...existing, answer_image_url: images[0] ?? null, answer_images: images } }));
       } else {
-        const { data, error: insertError } = await supabase.from("question_answers").insert({ question_id: question.id, answer_image_url: url }).select("id, question_id, answer_image_url, answer_text, correct_option").single();
+        const { data, error: insertError } = await supabase.from("question_answers").insert({ question_id: question.id, answer_image_url: url, answer_images: images }).select("id, question_id, answer_image_url, answer_images, answer_text, correct_option").single();
         if (insertError) throw new Error(insertError.message);
         setAnswers((current) => ({ ...current, [question.id]: data as Answer }));
       }
@@ -387,6 +408,87 @@ export default function QuestionPageEditor() {
     } finally {
       setUploading(null);
     }
+  }
+
+  async function removeQuestionImage(question: Question, url: string) {
+    const images = (question.question_images ?? (question.question_image_url ? [question.question_image_url] : [])).filter((item) => item !== url);
+    const { error: updateError } = await supabase.from("questions").update({ question_images: images, question_image_url: images[0] ?? null }).eq("id", question.id);
+    if (updateError) { setError(updateError.message); return; }
+    setQuestions((current) => current.map((item) => item.id === question.id ? { ...item, question_images: images, question_image_url: images[0] ?? null } : item));
+  }
+
+  async function removeAnswerImage(question: Question, url: string) {
+    const existing = answers[question.id];
+    if (!existing?.id) return;
+    const images = (existing.answer_images ?? (existing.answer_image_url ? [existing.answer_image_url] : [])).filter((item) => item !== url);
+    const { error: updateError } = await supabase.from("question_answers").update({ answer_images: images, answer_image_url: images[0] ?? null }).eq("id", existing.id);
+    if (updateError) { setError(updateError.message); return; }
+    setAnswers((current) => ({ ...current, [question.id]: { ...existing, answer_images: images, answer_image_url: images[0] ?? null } }));
+  }
+
+  async function saveTeacherComment(question: Question) {
+    if (!currentUserId) return;
+    setCommentSaving(true);
+    const result = teacherComment.trim()
+      ? await supabase.from("question_teacher_comments").upsert({ question_id: question.id, teacher_id: currentUserId, comment: teacherComment.trim() }, { onConflict: "question_id,teacher_id" })
+      : await supabase.from("question_teacher_comments").delete().eq("question_id", question.id).eq("teacher_id", currentUserId);
+    if (result.error) setError(result.error.message);
+    setCommentSaving(false);
+  }
+
+  function referenceIdentity(value: string) {
+    const match = value.trim().toUpperCase().match(/^([A-Z0-9]{1,24})\/([A-Z0-9]{1,12})\/(M\/J|O\/N)\/(\d{2})\s*-\s*(\S+)$/);
+    return match ? { subject_code: match[1], paper_number: match[2], session: match[3], year: Number(match[4]), question_number: match[5], reference: `${match[1]}/${match[2]}/${match[3]}/${match[4]} - ${match[5]}` } : null;
+  }
+
+  async function previewArchiveImport() {
+    setError("");
+    const lines = importText.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    const parsedLines = lines.map((line) => ({ line, parsed: referenceIdentity(line) }));
+    const parsed = parsedLines.flatMap(({ parsed: item }) => item ? [item] : []);
+    const malformed = parsedLines.filter((item) => !item.parsed).map(({ line }) => ({ reference: line, archive: null, duplicateInput: false, alreadyAdded: false, malformed: true } as ImportMatch));
+    if (!parsed.length) { setImportMatches(malformed); setError("Enter references like 5054/11/M/J/26 - 10."); return; }
+    const subjectCodes = [...new Set(parsed.map((item) => item.subject_code))];
+    const { data, error: archiveError } = await supabase.from("paper_archive_questions").select("id,subject_code,paper_number,session,year,question_number,question_images,answer_images").in("subject_code", subjectCodes);
+    if (archiveError) { setError(archiveError.message); return; }
+    const archiveRows = (data ?? []) as ArchiveQuestion[];
+    const seen = new Set<string>();
+    const matched = parsed.map((reference) => {
+      const duplicateInput = seen.has(reference.reference); seen.add(reference.reference);
+      const archive = archiveRows.find((row) => row.subject_code.toUpperCase() === reference.subject_code && row.paper_number.toUpperCase() === reference.paper_number && row.session.toUpperCase() === reference.session && Number(row.year) === reference.year && row.question_number.toUpperCase() === reference.question_number) ?? null;
+      const alreadyAdded = questions.some((question) => (question.paper_code ?? "").toUpperCase() === reference.reference.split(" - ")[0] && (question.paper_question_number ?? "").toUpperCase() === reference.question_number);
+      return { reference: reference.reference, archive, duplicateInput, alreadyAdded };
+    });
+    let matchIndex = 0;
+    setImportMatches(parsedLines.map(({ parsed: item, line }) => item ? matched[matchIndex++] : ({ reference: line, archive: null, duplicateInput: false, alreadyAdded: false, malformed: true })));
+  }
+
+  async function importArchiveQuestions() {
+    if (!page) return;
+    const ready = importMatches.filter((item) => item.archive && !item.duplicateInput && !item.alreadyAdded);
+    if (!ready.length) return;
+    setImporting(true); setError("");
+    try {
+      let order = questions.length ? Math.max(...questions.map((question) => question.order_index)) + 1 : 0;
+      let number = questions.length ? Math.max(...questions.map((question) => question.question_number ?? 0)) + 1 : 1;
+      for (const item of ready) {
+        const archive = item.archive!;
+        const { data: inserted, error: questionError } = await supabase.from("questions").insert({
+          question_page_id: page.id, question_number: number, question_type: page.page_type, marks: 1, order_index: order,
+          question_image_url: archive.question_images[0] ?? null, question_images: archive.question_images,
+          paper_code: `${archive.subject_code}/${archive.paper_number}/${archive.session}/${String(archive.year).padStart(2, "0")}`,
+          paper_question_number: archive.question_number,
+        }).select("id").single();
+        if (questionError) throw new Error(questionError.message);
+        if (archive.answer_images.length) {
+          const { error: answerError } = await supabase.from("question_answers").insert({ question_id: inserted.id, answer_image_url: archive.answer_images[0], answer_images: archive.answer_images });
+          if (answerError) { await supabase.from("questions").delete().eq("id", inserted.id); throw new Error(answerError.message); }
+        }
+        number += 1; order += 1;
+      }
+      setImportText(""); setImportMatches([]); setImportOpen(false); await load();
+    } catch (importError) { setError(importError instanceof Error ? importError.message : "Unable to import the selected archive questions."); }
+    finally { setImporting(false); }
   }
 
   function updateQuestion(id: string, patch: Partial<Question>) {
@@ -432,7 +534,7 @@ export default function QuestionPageEditor() {
         <section className="space-y-5 rounded-2xl border border-border bg-card p-5 sm:p-7">
           {questions.length === 0 ? <div className="py-16 text-center text-sm text-muted-foreground">No questions have been added yet.</div> : questions.map((question, index) => {
             const answer = answers[question.id];
-            return <article key={question.id} className="rounded-2xl border border-border p-4 sm:p-6"><div className="flex items-center justify-between gap-3"><h2 className="text-lg font-bold">Question {question.question_number ?? index + 1}</h2><span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold">{question.marks} mark{Number(question.marks) === 1 ? "" : "s"}</span></div>{question.question_image_url && <img src={question.question_image_url} alt={`Question ${question.question_number ?? index + 1}`} className="mt-4 max-h-[650px] w-full rounded-xl border border-border object-contain" />}{page.page_type === "mcq" && <div className="mt-5 grid gap-2 sm:grid-cols-2"><div className="rounded-xl border border-border px-4 py-3">A</div><div className="rounded-xl border border-border px-4 py-3">B</div><div className="rounded-xl border border-border px-4 py-3">C</div><div className="rounded-xl border border-border px-4 py-3">D</div></div>}{answer?.answer_text && <div className="mt-5 rounded-xl bg-muted/50 p-4 text-sm"><p className="font-semibold">Answer / Explanation</p><p className="mt-2 whitespace-pre-wrap text-muted-foreground">{answer.answer_text}</p></div>}</article>;
+            return <article key={question.id} className="rounded-2xl border border-border p-4 sm:p-6"><div className="flex items-center justify-between gap-3"><h2 className="text-lg font-bold">Question {question.question_number ?? index + 1}</h2><span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold">{question.marks} mark{Number(question.marks) === 1 ? "" : "s"}</span></div>{(question.question_images ?? (question.question_image_url ? [question.question_image_url] : [])).map((url, imageIndex) => <img key={url} src={url} alt={`Question ${question.question_number ?? index + 1}, image ${imageIndex + 1}`} className="mt-4 max-h-[650px] w-full rounded-xl border border-border object-contain" />)}{page.page_type === "mcq" && <div className="mt-5 grid gap-2 sm:grid-cols-2"><div className="rounded-xl border border-border px-4 py-3">A</div><div className="rounded-xl border border-border px-4 py-3">B</div><div className="rounded-xl border border-border px-4 py-3">C</div><div className="rounded-xl border border-border px-4 py-3">D</div></div>}{answer?.answer_text && <div className="mt-5 rounded-xl bg-muted/50 p-4 text-sm"><p className="font-semibold">Answer / Explanation</p><p className="mt-2 whitespace-pre-wrap text-muted-foreground">{answer.answer_text}</p></div>}{(answer?.answer_images ?? (answer?.answer_image_url ? [answer.answer_image_url] : [])).map((url, imageIndex) => <img key={url} src={url} alt={`Answer image ${imageIndex + 1}`} className="mt-4 max-h-[650px] w-full rounded-xl border border-border object-contain" />)}</article>;
           })}
         </section>
         {videoEmbedUrl && <section className="rounded-2xl border border-border bg-card p-5 sm:p-7"><h2 className="text-lg font-bold">Discussion Video</h2><div className="mt-4 aspect-video overflow-hidden rounded-2xl bg-black"><iframe src={videoEmbedUrl} title="Discussion video" className="h-full w-full" allowFullScreen /></div></section>}
@@ -450,6 +552,7 @@ export default function QuestionPageEditor() {
           {page.description && <p className="mt-1 text-sm text-muted-foreground">{page.description}</p>}
         </div>
         <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => { setImportOpen((open) => !open); setImportMatches([]); }} disabled={deletingPage} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold hover:bg-muted disabled:opacity-50"><FileImage className="h-4 w-4" /> Import from Archive</button>
           <button type="button" onClick={() => void togglePublished()} disabled={publishing || deletingPage} className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50">{publishing ? "Updating..." : page.is_published ? "Unpublish" : "Publish"}</button>
           <button type="button" onClick={() => setPreviewMode(true)} disabled={deletingPage} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold hover:bg-muted disabled:opacity-50"><Eye className="h-4 w-4" /> Preview</button>
           <button type="button" onClick={() => void addQuestion()} disabled={saving || deletingPage} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold hover:bg-muted disabled:opacity-50"><Plus className="h-4 w-4" /> Add Question</button>
@@ -458,6 +561,8 @@ export default function QuestionPageEditor() {
       </div>
 
       {error && <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">{error}</div>}
+
+      {importOpen && <section className="space-y-4 rounded-2xl border border-primary/20 bg-primary/[0.025] p-5"><div><h2 className="font-bold">Import past-paper questions</h2><p className="mt-1 text-xs text-muted-foreground">Paste one reference per line. For each match, the question and marking images are copied into this page.</p></div><textarea value={importText} onChange={(event) => setImportText(event.target.value)} className="min-h-28 w-full rounded-xl border border-input bg-background p-3 font-mono text-sm outline-none focus:border-primary" placeholder={'5054/11/M/J/26 - 10\n5054/11/M/J/26 - 11(a)'} /><div className="flex flex-wrap gap-2"><button type="button" onClick={() => void previewArchiveImport()} className="inline-flex h-10 items-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold hover:bg-muted">Preview matches</button>{importMatches.some((item) => item.archive && !item.duplicateInput && !item.alreadyAdded) && <button type="button" onClick={() => void importArchiveQuestions()} disabled={importing} className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50">{importing ? <><Loader2 className="h-4 w-4 animate-spin" /> Importing...</> : "Add matched questions"}</button>}</div>{importMatches.length > 0 && <div className="divide-y divide-border rounded-xl border border-border bg-card">{importMatches.map((item, index) => <div key={`${item.reference}-${index}`} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 text-sm"><span className="font-mono text-xs">{item.reference}</span><span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${item.malformed || item.duplicateInput || item.alreadyAdded ? "bg-amber-500/10 text-amber-700" : item.archive ? "bg-emerald-500/10 text-emerald-700" : "bg-destructive/10 text-destructive"}`}>{item.malformed ? "Invalid reference" : item.duplicateInput ? "Duplicate in list" : item.alreadyAdded ? "Already on this page" : item.archive ? "Ready to import" : "Missing from archive"}</span></div>)}</div>}</section>}
 
       <div className="grid gap-5 lg:grid-cols-[280px_1fr]">
         <aside className="rounded-2xl border border-border bg-card p-3">
@@ -477,18 +582,19 @@ export default function QuestionPageEditor() {
                 <label className="text-sm font-semibold">Marks<input type="number" min="0" step="0.5" value={selected.marks} onChange={(e) => updateQuestion(selected.id, { marks: Number(e.target.value) })} className={inputClass} /></label>
               </div>
               <div className="rounded-2xl border border-border p-4 outline-none focus-within:border-primary/30" tabIndex={0} onPaste={(event) => { if (selected) void handleQuestionPaste(event, selected); }}>
-                <div className="flex items-center justify-between gap-3"><div><h3 className="text-sm font-bold">Question Image</h3><p className="mt-1 text-xs text-muted-foreground">Upload the complete question, including choices if it is an MCQ. You can also paste an image here with Ctrl+V.</p></div><label className={`inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-semibold ${uploading ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-muted"}`}><Upload className="h-4 w-4" /> {uploading === "question" ? "Uploading..." : "Upload"}<input type="file" accept="image/*" disabled={uploading !== null || deletingPage} className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleQuestionImage(selected, file); e.currentTarget.value = ""; }} /></label></div>
+                <div className="flex items-center justify-between gap-3"><div><h3 className="text-sm font-bold">Question Images</h3><p className="mt-1 text-xs text-muted-foreground">Select several images at once or paste one here with Ctrl+V. Images are resized and compressed during upload.</p></div><label className={`inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-semibold ${uploading ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-muted"}`}><Upload className="h-4 w-4" /> {uploading === "question" ? "Uploading..." : "Upload images"}<input type="file" multiple accept="image/*" disabled={uploading !== null || deletingPage} className="hidden" onChange={(e) => { const files = Array.from(e.target.files ?? []); void files.reduce((promise, file) => promise.then(() => handleQuestionImage(selected, file)), Promise.resolve()); e.currentTarget.value = ""; }} /></label></div>
                 {uploading === "question" && <div className="mt-4 rounded-xl bg-muted/50 p-3"><div className="flex items-center gap-3 text-xs font-semibold"><Loader2 className="h-4 w-4 animate-spin text-primary" /> Uploading question image...</div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full w-1/2 animate-pulse rounded-full bg-primary" /></div></div>}
-                {selected.question_image_url ? <img src={selected.question_image_url} alt={`Question ${selected.question_number ?? 1}`} className="mt-4 max-h-[560px] w-full rounded-xl border border-border object-contain" /> : !uploading && <div className="mt-4 flex h-36 items-center justify-center rounded-xl border border-dashed border-border text-xs text-muted-foreground">No question image uploaded</div>}
+                {(selected.question_images ?? (selected.question_image_url ? [selected.question_image_url] : [])).length ? <div className="mt-4 grid gap-3">{(selected.question_images ?? (selected.question_image_url ? [selected.question_image_url] : [])).map((url, imageIndex) => <div key={url} className="relative rounded-xl border border-border p-2"><img src={url} alt={`Question ${selected.question_number ?? 1}, image ${imageIndex + 1}`} className="max-h-[560px] w-full object-contain" /><button type="button" onClick={() => void removeQuestionImage(selected, url)} className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-lg bg-background/90 px-2 py-1 text-xs font-semibold text-destructive shadow" aria-label="Remove image"><X className="h-3.5 w-3.5" /> Remove</button></div>)}</div> : !uploading && <div className="mt-4 flex h-36 items-center justify-center rounded-xl border border-dashed border-border text-xs text-muted-foreground">No question image uploaded</div>}
               </div>
               <div className="rounded-2xl border border-border p-4 outline-none focus-within:border-primary/30" tabIndex={0} onPaste={(event) => { if (selected) void handleAnswerPaste(event, selected); }}>
                 <h3 className="text-sm font-bold">Answer / Marking</h3><p className="mt-1 text-xs text-muted-foreground">Store the answer or marking guidance for this question.</p>
                 {page.page_type === "mcq" && <label className="mt-4 block text-sm font-semibold">Correct Option<select value={selectedAnswer?.correct_option ?? ""} onChange={(e) => updateAnswer(selected.id, { correct_option: e.target.value || null })} className={inputClass}><option value="">Select correct option</option><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option></select></label>}
                 <label className="mt-4 block text-sm font-semibold">Answer / Explanation<textarea value={selectedAnswer?.answer_text ?? ""} onChange={(e) => updateAnswer(selected.id, { answer_text: e.target.value })} className="mt-2 min-h-28 w-full rounded-xl border border-input bg-background p-3 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary/10" placeholder={page.page_type === "mcq" ? "Optional explanation" : "Enter the answer or marking guidance"} /></label>
-                <div className="mt-4 flex items-center justify-between gap-3"><div><p className="text-sm font-semibold">Answer Image</p><p className="mt-1 text-xs text-muted-foreground">Optional solution/reference image. You can also paste an image here with Ctrl+V.</p></div><label className={`inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-semibold ${uploading ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-muted"}`}><Upload className="h-4 w-4" /> {uploading === "answer" ? "Uploading..." : "Upload"}<input type="file" accept="image/*" disabled={uploading !== null || deletingPage} className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleAnswerImage(selected, file); e.currentTarget.value = ""; }} /></label></div>
+                <div className="mt-4 flex items-center justify-between gap-3"><div><p className="text-sm font-semibold">Answer Images</p><p className="mt-1 text-xs text-muted-foreground">Add a set of solution images or paste images here with Ctrl+V.</p></div><label className={`inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-semibold ${uploading ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-muted"}`}><Upload className="h-4 w-4" /> {uploading === "answer" ? "Uploading..." : "Upload images"}<input type="file" multiple accept="image/*" disabled={uploading !== null || deletingPage} className="hidden" onChange={(e) => { const files = Array.from(e.target.files ?? []); void files.reduce((promise, file) => promise.then(() => handleAnswerImage(selected, file)), Promise.resolve()); e.currentTarget.value = ""; }} /></label></div>
                 {uploading === "answer" && <div className="mt-4 rounded-xl bg-muted/50 p-3"><div className="flex items-center gap-3 text-xs font-semibold"><Loader2 className="h-4 w-4 animate-spin text-primary" /> Uploading answer image...</div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full w-1/2 animate-pulse rounded-full bg-primary" /></div></div>}
-                {selectedAnswer?.answer_image_url && <img src={selectedAnswer.answer_image_url} alt="Answer" className="mt-4 max-h-80 w-full rounded-xl border border-border object-contain" />}
+                {(selectedAnswer?.answer_images ?? (selectedAnswer?.answer_image_url ? [selectedAnswer.answer_image_url] : [])).map((url, imageIndex) => <div key={url} className="relative mt-4 rounded-xl border border-border p-2"><img src={url} alt={`Answer image ${imageIndex + 1}`} className="max-h-80 w-full object-contain" /><button type="button" onClick={() => void removeAnswerImage(selected, url)} className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-lg bg-background/90 px-2 py-1 text-xs font-semibold text-destructive shadow"><X className="h-3.5 w-3.5" /> Remove</button></div>)}
               </div>
+              <div className="rounded-2xl border border-border p-4"><h3 className="text-sm font-bold">Teacher comment</h3><p className="mt-1 text-xs text-muted-foreground">Private notes for teachers. Students cannot see these.</p><textarea value={teacherComment} onChange={(event) => setTeacherComment(event.target.value)} maxLength={5000} className="mt-3 min-h-24 w-full rounded-xl border border-input bg-background p-3 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary/10" placeholder="Add teaching notes or reminders for this question" /><div className="mt-3 flex justify-end"><button type="button" onClick={() => void saveTeacherComment(selected)} disabled={commentSaving} className="rounded-xl border border-border px-3 py-2 text-xs font-semibold hover:bg-muted disabled:opacity-50">{commentSaving ? "Saving..." : "Save teacher comment"}</button></div></div>
               <div className="flex justify-end"><button type="button" onClick={() => void saveQuestion(selected)} disabled={saving || uploading !== null || deletingPage} className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save Question</button></div>
             </div>
           )}
