@@ -15,6 +15,7 @@ type QuestionPage = {
   is_published: boolean;
 };
 
+type QuestionPart = { label: string; prompt: string; marks: number };
 type Question = {
   id: string;
   question_page_id: string;
@@ -26,6 +27,7 @@ type Question = {
   question_images: string[];
   paper_code: string | null;
   paper_question_number: string | null;
+  parts: QuestionPart[];
 };
 
 type Answer = {
@@ -36,8 +38,8 @@ type Answer = {
   answer_text: string | null;
   correct_option: string | null;
 };
-type ArchiveQuestion = { id: string; subject_code: string; paper_number: string; session: string; year: number; question_number: string; question_images: string[]; answer_images: string[] };
-type ImportMatch = { reference: string; archive: ArchiveQuestion | null; duplicateInput: boolean; alreadyAdded: boolean; malformed?: boolean };
+type ArchiveQuestion = { id: string; subject_code: string; paper_number: string; session: string; year: number; question_number: string; question_type: "mcq" | "structured"; marks: number; question_images: string[]; answer_images: string[]; explanation_images: string[]; correct_option: string | null; marking_text: string | null; explanation_text: string | null; teacher_comment: string | null; parts: QuestionPart[] };
+type ImportMatch = { reference: string; archive: ArchiveQuestion | null; duplicateInput: boolean; alreadyAdded: boolean; typeMismatch?: boolean; malformed?: boolean };
 
 const inputClass = "mt-2 h-10 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary/10";
 
@@ -127,7 +129,7 @@ export default function QuestionPageEditor() {
 
     const { data: questionData, error: questionError } = await supabase
       .from("questions")
-      .select("id, question_page_id, question_number, question_type, marks, order_index, question_image_url, question_images, paper_code, paper_question_number")
+      .select("id, question_page_id, question_number, question_type, marks, order_index, question_image_url, question_images, paper_code, paper_question_number, parts")
       .eq("question_page_id", pageId)
       .order("order_index", { ascending: true });
 
@@ -198,8 +200,8 @@ export default function QuestionPageEditor() {
 
       const { data, error: insertError } = await supabase
         .from("questions")
-        .insert({ question_page_id: page.id, question_number: nextNumber, question_type: page.page_type, marks: 1, order_index: nextOrder })
-        .select("id, question_page_id, question_number, question_type, marks, order_index, question_image_url, question_images, paper_code, paper_question_number")
+        .insert({ question_page_id: page.id, question_number: nextNumber, question_type: page.page_type, marks: 1, order_index: nextOrder, parts: [] })
+        .select("id, question_page_id, question_number, question_type, marks, order_index, question_image_url, question_images, paper_code, paper_question_number, parts")
         .single();
 
       if (insertError) throw new Error(insertError.message);
@@ -223,6 +225,7 @@ export default function QuestionPageEditor() {
         marks: question.marks,
         paper_code: question.paper_code?.trim() || null,
         paper_question_number: question.paper_question_number?.trim() || null,
+        parts: question.parts ?? [],
       }).eq("id", question.id);
 
       if (updateError) throw new Error(updateError.message);
@@ -442,6 +445,7 @@ export default function QuestionPageEditor() {
   }
 
   async function previewArchiveImport() {
+    if (!page) return;
     setError("");
     const lines = importText.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
     const parsedLines = lines.map((line) => ({ line, parsed: referenceIdentity(line) }));
@@ -449,15 +453,25 @@ export default function QuestionPageEditor() {
     const malformed = parsedLines.filter((item) => !item.parsed).map(({ line }) => ({ reference: line, archive: null, duplicateInput: false, alreadyAdded: false, malformed: true } as ImportMatch));
     if (!parsed.length) { setImportMatches(malformed); setError("Enter references like 5054/11/M/J/26 - 10."); return; }
     const subjectCodes = [...new Set(parsed.map((item) => item.subject_code))];
-    const { data, error: archiveError } = await supabase.from("paper_archive_questions").select("id,subject_code,paper_number,session,year,question_number,question_images,answer_images").in("subject_code", subjectCodes);
+    const { data, error: archiveError } = await supabase.from("paper_archive_questions").select("id,subject_code,paper_number,session,year,question_number,question_type,marks,question_images,answer_images,explanation_images,correct_option,marking_text,explanation_text,parts").in("subject_code", subjectCodes);
     if (archiveError) { setError(archiveError.message); return; }
-    const archiveRows = (data ?? []) as ArchiveQuestion[];
+    const rows = (data ?? []) as ArchiveQuestion[];
+    let archiveRows = rows;
+    if (currentUserId && rows.length) {
+      const { data: notes, error: noteError } = await supabase.from("paper_archive_teacher_comments").select("paper_archive_question_id,comment").eq("teacher_id", currentUserId).in("paper_archive_question_id", rows.map((row) => row.id));
+      if (noteError) { setError(noteError.message); return; }
+      const noteRows = (notes ?? []) as Array<{ paper_archive_question_id: string; comment: string }>;
+      const noteById = new Map<string, string>(noteRows.map((note) => [note.paper_archive_question_id, note.comment]));
+      archiveRows = rows.map((row) => ({ ...row, teacher_comment: noteById.get(row.id) ?? null }));
+    }
+    const pageIsMcq = page.page_type.toLowerCase() === "mcq";
     const seen = new Set<string>();
     const matched = parsed.map((reference) => {
       const duplicateInput = seen.has(reference.reference); seen.add(reference.reference);
       const archive = archiveRows.find((row) => row.subject_code.toUpperCase() === reference.subject_code && row.paper_number.toUpperCase() === reference.paper_number && row.session.toUpperCase() === reference.session && Number(row.year) === reference.year && row.question_number.toUpperCase() === reference.question_number) ?? null;
       const alreadyAdded = questions.some((question) => (question.paper_code ?? "").toUpperCase() === reference.reference.split(" - ")[0] && (question.paper_question_number ?? "").toUpperCase() === reference.question_number);
-      return { reference: reference.reference, archive, duplicateInput, alreadyAdded };
+      const typeMismatch = Boolean(archive && (archive.question_type === "mcq") !== pageIsMcq);
+      return { reference: reference.reference, archive, duplicateInput, alreadyAdded, typeMismatch };
     });
     let matchIndex = 0;
     setImportMatches(parsedLines.map(({ parsed: item, line }) => item ? matched[matchIndex++] : ({ reference: line, archive: null, duplicateInput: false, alreadyAdded: false, malformed: true })));
@@ -465,7 +479,7 @@ export default function QuestionPageEditor() {
 
   async function importArchiveQuestions() {
     if (!page) return;
-    const ready = importMatches.filter((item) => item.archive && !item.duplicateInput && !item.alreadyAdded);
+    const ready = importMatches.filter((item) => item.archive && !item.duplicateInput && !item.alreadyAdded && !item.typeMismatch);
     if (!ready.length) return;
     setImporting(true); setError("");
     try {
@@ -474,15 +488,20 @@ export default function QuestionPageEditor() {
       for (const item of ready) {
         const archive = item.archive!;
         const { data: inserted, error: questionError } = await supabase.from("questions").insert({
-          question_page_id: page.id, question_number: number, question_type: page.page_type, marks: 1, order_index: order,
+          question_page_id: page.id, question_number: number, question_type: page.page_type, marks: archive.marks || 1, order_index: order, parts: archive.parts ?? [],
           question_image_url: archive.question_images[0] ?? null, question_images: archive.question_images,
           paper_code: `${archive.subject_code}/${archive.paper_number}/${archive.session}/${String(archive.year).padStart(2, "0")}`,
           paper_question_number: archive.question_number,
         }).select("id").single();
         if (questionError) throw new Error(questionError.message);
-        if (archive.answer_images.length) {
-          const { error: answerError } = await supabase.from("question_answers").insert({ question_id: inserted.id, answer_image_url: archive.answer_images[0], answer_images: archive.answer_images });
+        const archiveAnswerImages = [...(archive.answer_images ?? []), ...(archive.explanation_images ?? [])];
+        if (archiveAnswerImages.length || archive.correct_option || archive.marking_text || archive.explanation_text) {
+          const { error: answerError } = await supabase.from("question_answers").insert({ question_id: inserted.id, answer_image_url: archiveAnswerImages[0] ?? null, answer_images: archiveAnswerImages, answer_text: archive.marking_text ?? archive.explanation_text ?? null, correct_option: archive.correct_option });
           if (answerError) { await supabase.from("questions").delete().eq("id", inserted.id); throw new Error(answerError.message); }
+        }
+        if (archive.teacher_comment?.trim() && currentUserId) {
+          const { error: commentError } = await supabase.from("question_teacher_comments").upsert({ question_id: inserted.id, teacher_id: currentUserId, comment: archive.teacher_comment.trim() }, { onConflict: "question_id,teacher_id" });
+          if (commentError) { await supabase.from("questions").delete().eq("id", inserted.id); throw new Error(commentError.message); }
         }
         number += 1; order += 1;
       }
@@ -562,7 +581,7 @@ export default function QuestionPageEditor() {
 
       {error && <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">{error}</div>}
 
-      {importOpen && <section className="space-y-4 rounded-2xl border border-primary/20 bg-primary/[0.025] p-5"><div><h2 className="font-bold">Import past-paper questions</h2><p className="mt-1 text-xs text-muted-foreground">Paste one reference per line. For each match, the question and marking images are copied into this page.</p></div><textarea value={importText} onChange={(event) => setImportText(event.target.value)} className="min-h-28 w-full rounded-xl border border-input bg-background p-3 font-mono text-sm outline-none focus:border-primary" placeholder={'5054/11/M/J/26 - 10\n5054/11/M/J/26 - 11(a)'} /><div className="flex flex-wrap gap-2"><button type="button" onClick={() => void previewArchiveImport()} className="inline-flex h-10 items-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold hover:bg-muted">Preview matches</button>{importMatches.some((item) => item.archive && !item.duplicateInput && !item.alreadyAdded) && <button type="button" onClick={() => void importArchiveQuestions()} disabled={importing} className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50">{importing ? <><Loader2 className="h-4 w-4 animate-spin" /> Importing...</> : "Add matched questions"}</button>}</div>{importMatches.length > 0 && <div className="divide-y divide-border rounded-xl border border-border bg-card">{importMatches.map((item, index) => <div key={`${item.reference}-${index}`} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 text-sm"><span className="font-mono text-xs">{item.reference}</span><span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${item.malformed || item.duplicateInput || item.alreadyAdded ? "bg-amber-500/10 text-amber-700" : item.archive ? "bg-emerald-500/10 text-emerald-700" : "bg-destructive/10 text-destructive"}`}>{item.malformed ? "Invalid reference" : item.duplicateInput ? "Duplicate in list" : item.alreadyAdded ? "Already on this page" : item.archive ? "Ready to import" : "Missing from archive"}</span></div>)}</div>}</section>}
+      {importOpen && <section className="space-y-4 rounded-2xl border border-primary/20 bg-primary/[0.025] p-5"><div><h2 className="font-bold">Import past-paper questions</h2><p className="mt-1 text-xs text-muted-foreground">Paste one reference per line. The archive question category must match this Question Page.</p></div><textarea value={importText} onChange={(event) => setImportText(event.target.value)} className="min-h-28 w-full rounded-xl border border-input bg-background p-3 font-mono text-sm outline-none focus:border-primary" placeholder={'5054/11/M/J/26 - 10\n5054/11/M/J/26 - 11(a)'} /><div className="flex flex-wrap gap-2"><button type="button" onClick={() => void previewArchiveImport()} className="inline-flex h-10 items-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold hover:bg-muted">Preview matches</button>{importMatches.some((item) => item.archive && !item.duplicateInput && !item.alreadyAdded && !item.typeMismatch) && <button type="button" onClick={() => void importArchiveQuestions()} disabled={importing} className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50">{importing ? <><Loader2 className="h-4 w-4 animate-spin" /> Importing...</> : "Add matched questions"}</button>}</div>{importMatches.length > 0 && <div className="divide-y divide-border rounded-xl border border-border bg-card">{importMatches.map((item, index) => <div key={`${item.reference}-${index}`} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 text-sm"><span className="font-mono text-xs">{item.reference}</span><span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${item.malformed || item.duplicateInput || item.alreadyAdded || item.typeMismatch ? "bg-amber-500/10 text-amber-700" : item.archive ? "bg-emerald-500/10 text-emerald-700" : "bg-destructive/10 text-destructive"}`}>{item.malformed ? "Invalid reference" : item.duplicateInput ? "Duplicate in list" : item.alreadyAdded ? "Already on this page" : item.typeMismatch ? `Category mismatch: archive is ${item.archive?.question_type === "mcq" ? "MCQ" : "Structured"}` : item.archive ? "Ready to import" : "Missing from archive"}</span></div>)}</div>}</section>}
 
       <div className="grid gap-5 lg:grid-cols-[280px_1fr]">
         <aside className="rounded-2xl border border-border bg-card p-3">
@@ -581,6 +600,7 @@ export default function QuestionPageEditor() {
                 <label className="text-sm font-semibold">Paper Code<input value={selected.paper_code ?? ""} onChange={(e) => updateQuestion(selected.id, { paper_code: e.target.value })} className={inputClass} placeholder="Optional" /></label>
                 <label className="text-sm font-semibold">Marks<input type="number" min="0" step="0.5" value={selected.marks} onChange={(e) => updateQuestion(selected.id, { marks: Number(e.target.value) })} className={inputClass} /></label>
               </div>
+              {page.page_type !== "mcq" && <div className="rounded-2xl border border-border p-4"><div className="flex items-start justify-between gap-3"><div><h3 className="text-sm font-bold">Question parts</h3><p className="mt-1 text-xs text-muted-foreground">Add labels and prompts such as (a) and (b). Save the question to keep changes.</p></div><button type="button" onClick={() => updateQuestion(selected.id, { parts: [...(selected.parts ?? []), { label: `(${String.fromCharCode(97 + (selected.parts?.length ?? 0))})`, prompt: "", marks: 0 }] })} className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-muted"><Plus className="h-3.5 w-3.5" /> Add part</button></div>{(selected.parts ?? []).map((part, partIndex) => <div key={partIndex} className="mt-3 grid gap-3 sm:grid-cols-[100px_1fr_100px_auto]"><label className="text-xs font-semibold">Part<input value={part.label} onChange={(event) => updateQuestion(selected.id, { parts: (selected.parts ?? []).map((entry, index) => index === partIndex ? { ...entry, label: event.target.value } : entry) })} className={inputClass} /></label><label className="text-xs font-semibold">Prompt<input value={part.prompt} onChange={(event) => updateQuestion(selected.id, { parts: (selected.parts ?? []).map((entry, index) => index === partIndex ? { ...entry, prompt: event.target.value } : entry) })} className={inputClass} placeholder="Optional part instruction" /></label><label className="text-xs font-semibold">Marks<input type="number" min="0" step="0.5" value={part.marks} onChange={(event) => updateQuestion(selected.id, { parts: (selected.parts ?? []).map((entry, index) => index === partIndex ? { ...entry, marks: Number(event.target.value) } : entry) })} className={inputClass} /></label><button type="button" onClick={() => updateQuestion(selected.id, { parts: (selected.parts ?? []).filter((_, index) => index !== partIndex) })} className="mt-6 rounded-lg p-2 text-destructive hover:bg-destructive/10" aria-label="Remove part"><X className="h-4 w-4" /></button></div>)}</div>}
               <div className="rounded-2xl border border-border p-4 outline-none focus-within:border-primary/30" tabIndex={0} onPaste={(event) => { if (selected) void handleQuestionPaste(event, selected); }}>
                 <div className="flex items-center justify-between gap-3"><div><h3 className="text-sm font-bold">Question Images</h3><p className="mt-1 text-xs text-muted-foreground">Select several images at once or paste one here with Ctrl+V. Images are resized and compressed during upload.</p></div><label className={`inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-semibold ${uploading ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-muted"}`}><Upload className="h-4 w-4" /> {uploading === "question" ? "Uploading..." : "Upload images"}<input type="file" multiple accept="image/*" disabled={uploading !== null || deletingPage} className="hidden" onChange={(e) => { const files = Array.from(e.target.files ?? []); void files.reduce((promise, file) => promise.then(() => handleQuestionImage(selected, file)), Promise.resolve()); e.currentTarget.value = ""; }} /></label></div>
                 {uploading === "question" && <div className="mt-4 rounded-xl bg-muted/50 p-3"><div className="flex items-center gap-3 text-xs font-semibold"><Loader2 className="h-4 w-4 animate-spin text-primary" /> Uploading question image...</div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full w-1/2 animate-pulse rounded-full bg-primary" /></div></div>}

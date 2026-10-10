@@ -7,7 +7,8 @@ import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 type Page = { id: string; title: string; description: string | null; page_type: string; is_published: boolean; subject_id: string };
-type Question = { id: string; question_number: number | null; question_type: string; marks: number; order_index: number; question_image_url: string | null; question_images: string[] };
+type QuestionPart = { label: string; prompt: string; marks: number };
+type Question = { id: string; question_number: number | null; question_type: string; marks: number; order_index: number; question_image_url: string | null; question_images: string[]; parts: QuestionPart[] };
 type Detail = { question_id: string; question_number: number | null; selected_option: string | null; correct_option: string | null; is_correct: boolean; explanation: string | null; answer_text?: string | null; answer_image_url: string | null; answer_images?: string[] };
 type Result = { answered: number; correct: number; wrong: number; earnedMarks: number; totalMarks: number; isPaid: boolean; details: Detail[]; youtubeUrl: string | null };
 type PracticeUser = { id: string; role: string } | null;
@@ -40,7 +41,7 @@ export default function StudentQuestionPage() {
       }
       const { data: pageData, error: pageError } = await supabase.from("question_pages").select("id,title,description,page_type,is_published,subject_id").eq("id", pageId).eq("is_published", true).maybeSingle();
       if (pageError || !pageData) { setError(pageError?.message ?? "This Question Page is unavailable."); setLoading(false); return; }
-      const { data: questionData, error: questionError } = await supabase.from("questions").select("id,question_number,question_type,marks,order_index,question_image_url,question_images").eq("question_page_id", pageId).order("order_index");
+      const { data: questionData, error: questionError } = await supabase.from("questions").select("id,question_number,question_type,marks,order_index,question_image_url,question_images,parts").eq("question_page_id", pageId).order("order_index");
       if (questionError) { setError(questionError.message); setLoading(false); return; }
 
       const { data: discussionData } = await supabase
@@ -87,7 +88,7 @@ export default function StudentQuestionPage() {
         }
       }
 
-      setPage(pageData as Page); setQuestions(((questionData ?? []) as Question[]).map((question) => ({ ...question, question_images: question.question_images ?? (question.question_image_url ? [question.question_image_url] : []) }))); setLoading(false);
+      setPage(pageData as Page); setQuestions(((questionData ?? []) as Question[]).map((question) => ({ ...question, parts: question.parts ?? [], question_images: question.question_images ?? (question.question_image_url ? [question.question_image_url] : []) }))); setLoading(false);
     }
     void load();
   }, [pageId, supabase]);
@@ -165,6 +166,7 @@ export default function StudentQuestionPage() {
             <article key={question.id} className={`rounded-2xl border bg-card p-4 sm:p-6 ${paidReview ? isCorrect ? "border-emerald-500/30" : isIncorrect ? "border-destructive/30" : "border-border" : "border-border"}`}>
               <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-wider text-primary">Question {question.question_number ?? index + 1}</p><h2 className="mt-1 text-lg font-bold">{question.marks} mark{Number(question.marks) === 1 ? "" : "s"}</h2></div>{paidReview && (isCorrect ? <CheckCircle2 className="h-6 w-6 shrink-0 text-emerald-600" /> : isIncorrect ? <XCircle className="h-6 w-6 shrink-0 text-destructive" /> : <CircleAlert className="h-6 w-6 shrink-0 text-muted-foreground" />)}</div>
               {question.question_images.length ? question.question_images.map((url, imageIndex) => <Image key={url} src={url} alt={`Question ${question.question_number ?? index + 1}, image ${imageIndex + 1}`} width={1200} height={900} sizes="(max-width: 768px) 100vw, 896px" className="mt-5 max-h-[700px] w-full rounded-xl border border-border object-contain" />) : <div className="mt-5 flex h-28 items-center justify-center rounded-xl border border-dashed border-border text-sm text-muted-foreground">Question image unavailable</div>}
+              {question.parts.length > 0 && <ol className="mt-5 space-y-3">{question.parts.map((part, partIndex) => <li key={partIndex} className="rounded-xl border border-border p-4"><div className="flex items-center justify-between gap-3"><strong>{part.label}</strong><span className="text-xs text-muted-foreground">{part.marks} mark{Number(part.marks) === 1 ? "" : "s"}</span></div>{part.prompt && <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{part.prompt}</p>}</li>)}</ol>}
               {page.page_type.toLowerCase() === "mcq" && practiceUser && <div className="mt-5 grid gap-3 sm:grid-cols-2">{OPTIONS.map((option) => { const chosenThis = chosen?.toUpperCase() === option; const correctThis = paidReview && detail.correct_option?.toUpperCase() === option; return <button key={option} type="button" onClick={() => choose(question.id, option)} disabled={Boolean(result)} className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left text-sm font-semibold transition ${chosenThis ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted/60"} ${correctThis ? "!border-emerald-500/40 !bg-emerald-500/10 !text-emerald-700" : ""} ${paidReview && chosenThis && !correctThis ? "!border-destructive/40 !bg-destructive/5 !text-destructive" : ""}`}><span className={`flex h-8 w-8 items-center justify-center rounded-full border text-xs ${chosenThis ? "border-primary bg-primary text-primary-foreground" : "border-border"}`}>{option}</span>{chosenThis ? "Selected" : `Option ${option}`}</button>; })}</div>}
               {paidReview && <div className="mt-4 rounded-xl bg-muted/50 p-4 text-sm">{page.page_type.toLowerCase() === "mcq" && <><p className="font-semibold">{detail.selected_option ? `Your answer: ${detail.selected_option}` : "You did not answer this question."}</p>{detail.correct_option && <p className="mt-1 text-muted-foreground">Correct answer: <span className="font-bold text-foreground">{detail.correct_option}</span></p>}</>}{(detail.explanation ?? detail.answer_text) && <p className="mt-3 whitespace-pre-wrap text-muted-foreground">{detail.explanation ?? detail.answer_text}</p>}{(detail.answer_images ?? (detail.answer_image_url ? [detail.answer_image_url] : [])).map((url, imageIndex) => <Image key={url} src={url} alt={`Answer explanation ${imageIndex + 1}`} width={1000} height={750} sizes="(max-width: 768px) 100vw, 896px" className="mt-3 max-h-[600px] w-full rounded-xl border border-border object-contain" />)}</div>}
             </article>
